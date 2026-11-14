@@ -48,6 +48,8 @@ Perangkat agresif: Xiaomi HyperOS, Oppo ColorOS, Samsung OneUI.
 | T27| Kuota unduhan vs pratinjau                    | Wi-Fi                     | Thumbnail tidak mengurangi kuota; pratinjau/unduh penuh mengurangi kuota |
 | T28| Popup "What's new"                             | Upgrade 1.0.4 → 1.0.5, 1.0.5 → 1.1.0 | Popup tampil sekali setelah upgrade dan tidak muncul lagi setelah ditutup |
 | T29| DNS Android tanpa hotspot/dnsmasq              | Seluler, hotspot mati     | API quick tunnel, SRV, dan features memakai `TUNNEL_DNS_SERVERS`; edge memakai `TUNNEL_EDGE`; link tetap 200 |
+| T30| Alamat edge pinned diblokir saat tunnel mulai  | VPN/firewall blokir 7844  | Percobaan pinned berhenti ≤60 detik; percobaan berikutnya tanpa `TUNNEL_EDGE` (log "Using cloudflared edge discovery") dan link pulih tanpa restart aplikasi |
+| T31| Pindah Wi-Fi ↔ seluler ↔ VPN saat tunnel mati | Jaringan berubah          | `TUNNEL_DNS_SERVERS` pada launch berikutnya memakai resolver jaringan baru, bukan resolver lama |
 
 ## Hasil uji
 
@@ -61,6 +63,11 @@ Status 13 November 2026: rilis 1.0.5 (code 15) terpasang lalu di-upgrade ke 1.1.
 T21–T27 lulus pada 1.0.5; T28 kini lulus lewat upgrade 1.0.5 → 1.1.0 (popup "Yang baru"
 muncul sekali). Sesi ini juga menemukan dan memperbaiki bug preview dokumen khusus Android
 (`isXIncludeAware`), lihat catatan di bawah.
+
+Status 14 November 2026: **1.1.1 (code 17)** menambahkan edge fallback adaptif (pinned ↔ discovery)
+dan membaca ulang `TUNNEL_DNS_SERVERS` pada setiap launch. Perilaku ini ditutup oleh
+`CloudflaredTunnelProviderTest` dan lulus di CI; T30/T31 belum dijalankan di perangkat fisik karena
+keterbatasan perangkat uji.
 
 Status 13 November 2026 (lanjutan): **1.1.0 (code 16)** menambahkan status `TIDAK STABIL`, probe
 `/healthz` end-to-end, watchdog `/ready`, dan pemulihan named tunnel setelah proses dibunuh. Uji

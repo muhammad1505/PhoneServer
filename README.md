@@ -35,7 +35,7 @@ Quick tunnel (mode default) tidak butuh setup apa pun dan cocok untuk pengujian.
 | `core`   | Model, pembangkit token, PBKDF2, rate limiter, parser Range, sanitasi nama/file/ZIP      |
 | `data`   | Room + DataStore, repository SAF, enkripsi Keystore, rolling redacted log               |
 | `server` | Ktor CIO, rute `/s/{token}`, unlock berpassword, streaming, Range 206, ZIP dinamis, pratinjau dokumen, thumbnail |
-| `tunnel` | Supervisi `cloudflared`, backoff eksponensial, environment aman, parser log           |
+| `tunnel` | Supervisi `cloudflared`, edge adaptif (pinned ↔ discovery), backoff eksponensial, environment aman, parser log |
 
 ## Instalasi manual
 
@@ -71,7 +71,7 @@ export POCKETSHARE_KEY_PASSWORD=...
 ./gradlew assembleRelease
 ```
 
-`versionCode` dan `versionName` otomatis dari variabel `POCKETSHARE_VERSION_CODE` dan `POCKETSHARE_VERSION_NAME`; tanpa keduanya digunakan `15` dan `1.0.5`.
+`versionCode` dan `versionName` otomatis dari variabel `POCKETSHARE_VERSION_CODE` dan `POCKETSHARE_VERSION_NAME`; tanpa keduanya digunakan `17` dan `1.1.1`.
 
 ## Keamanan
 
@@ -88,7 +88,7 @@ export POCKETSHARE_KEY_PASSWORD=...
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — catatan keputusan arsitektur.
 - [`docs/TEST_MATRIX.md`](docs/TEST_MATRIX.md) — matriks uji manual.
 - [`SECURITY.md`](SECURITY.md) — pelaporan kerentanan.
-- [`PRIVACY.md`](PRIVACY.md) — privasi, tidak ada data dikumpulkan, dan model ancaman (TLS berakhir di Cloudflare, tanpa E2EE di 1.0.5).
+- [`PRIVACY.md`](PRIVACY.md) — privasi, tidak ada data dikumpulkan, dan model ancaman (TLS berakhir di Cloudflare, tanpa E2EE di 1.1.1).
 - [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) — notis lisensi pihak ketiga.
 
 ## Lisensi

@@ -70,8 +70,8 @@ export POCKETSHARE_KEYSTORE=/path/pocketshare.jks
 export POCKETSHARE_KEYSTORE_PASSWORD=...
 export POCKETSHARE_KEY_ALIAS=pocketshare
 export POCKETSHARE_KEY_PASSWORD=...
-export POCKETSHARE_VERSION_CODE=15
-export POCKETSHARE_VERSION_NAME="1.0.5"
+export POCKETSHARE_VERSION_CODE=17
+export POCKETSHARE_VERSION_NAME="1.1.1"
 
 ./gradlew assembleRelease bundleRelease
 apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
@@ -168,8 +168,8 @@ export POCKETSHARE_KEYSTORE="$storeFile"
 export POCKETSHARE_KEYSTORE_PASSWORD="$storePassword"
 export POCKETSHARE_KEY_ALIAS="$keyAlias"
 export POCKETSHARE_KEY_PASSWORD="$keyPassword"
-export POCKETSHARE_VERSION_CODE=15
-export POCKETSHARE_VERSION_NAME="1.0.5"
+export POCKETSHARE_VERSION_CODE=17
+export POCKETSHARE_VERSION_NAME="1.1.1"
 ./gradlew assembleRelease bundleRelease
 ```
 

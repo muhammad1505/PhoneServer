@@ -2,7 +2,22 @@
 
 Catatan keputusan arsitektur dan keamanan, berurutan dari yang terbaru.
 
-## M9 (saat ini): Pratinjau dokumen dan seleksi unduhan (1.0.5)
+## M10 (saat ini): Edge adaptif dan resolver segar (1.1.1)
+
+- **Percobaan pertama tetap memakai `TUNNEL_EDGE`** hasil `InetAddress` di HP: jalur tercepat dan
+  tidak bergantung pada SRV. Namun proses cloudflared tidak bisa mengganti daftar itu sendiri, dan
+  log 14 November 2026 menunjukkan keempat alamat pinned gagal terus selama VPN memblokir 7844.
+- **Fallback discovery.** Bila percobaan pinned tidak pernah tersambung (watchdog 60 detik untuk
+  percobaan pinned, 150 detik untuk discovery), percobaan berikutnya mengosongkan `TUNNEL_EDGE`
+  sehingga cloudflared memakai SRV lewat resolver yang dipatch. Strategi bergantian pada kegagalan
+  berturut-turut, dan kembali ke pinned setelah ada koneksi yang berhasil, agar satu strategi yang
+  rusak di jaringan tertentu tidak mengunci semuanya.
+- **`TUNNEL_DNS_SERVERS` dibaca ulang setiap launch** (bukan sekali saat sesi mulai). Resolver
+  ikut berpindah jaringan; daftar lama tidak berguna setelah handover Wi-Fi/seluler/VPN.
+- **CI tanpa APK debug** pada job tes; verifikasi `libcloudflared.so` dipindah ke APK rilis. Job
+  rilis menghapus artifact workflow lama agar kuota penyimpanan GitHub tidak menumpuk.
+
+## M9: Pratinjau dokumen dan seleksi unduhan (1.0.5)
 
 - **Pratinjau dokumen diproses di ponsel**: `DocumentText`/`LegacyDocumentText`/`RtfText` mengekstrak
   teks dengan batas ukuran, lalu `DocumentHtml` merender struktur aman. File pengguna tidak pernah
@@ -20,7 +35,7 @@ Catatan keputusan arsitektur dan keamanan, berurutan dari yang terbaru.
 ## M8: Release, CI, dan dokumentasi
 
 - **Aplikasi signing** dari variabel environment (`POCKETSHARE_KEYSTORE` dll.), bukan keystore di
-  repo. `versionCode`/`versionName` juga dari environment dengan default `16`/`1.1.0`.
+  repo. `versionCode`/`versionName` juga dari environment dengan default `17`/`1.1.1`.
 - **Cloudflare Tunnel sebagai satu-satunya pihak ketiga**; analytics/telemetry ditolak di semua
   layer.
 - **GitHub Actions CI**: lint, unit/integration test, detekt, ktlint (check), dan `assembleRelease`

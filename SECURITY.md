@@ -2,9 +2,10 @@
 
 ## Versi yang didukung
 
-| Versi | Status        |
-|-------|---------------|
-| 1.0.x | Aktif         |
+| Versi | Status          |
+|-------|-----------------|
+| 1.1.x | Aktif           |
+| 1.0.x | Tidak didukung  |
 
 ## Pelaporan kerentanan
 

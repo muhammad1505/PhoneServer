@@ -1,6 +1,24 @@
 {
   "releases": [
     {
+      "version": "1.1.1",
+      "date": "2026-11-14",
+      "title": "Steadier connections on difficult networks",
+      "title_id": "Koneksi lebih stabil di jaringan sulit",
+      "highlights": [
+        "If the Cloudflare edge addresses resolved on your phone cannot be reached, Pocket Share now retries through Cloudflare's own edge discovery instead of hammering the same blocked addresses.",
+        "DNS servers are read again before every connection attempt, so switching between Wi-Fi, mobile data, and VPN no longer leaves the tunnel using resolvers from the previous network.",
+        "A connection attempt that stays pinned for 60 seconds without connecting hands over to discovery, so a blocked route recovers faster.",
+        "Smaller CI footprint: test runs no longer build a debug APK, and older release artifacts are removed automatically."
+      ],
+      "highlights_id": [
+        "Jika alamat edge Cloudflare hasil resolve di HP tidak bisa dijangkau, Pocket Share kini mencoba lewat discovery milik cloudflared alih-alih terus menembak alamat yang sama.",
+        "Server DNS dibaca ulang sebelum setiap percobaan koneksi, jadi berpindah antara Wi-Fi, data seluler, dan VPN tidak lagi membuat tunnel memakai resolver dari jaringan sebelumnya.",
+        "Percobaan yang tetap memakai alamat pinned selama 60 detik tanpa tersambung akan beralih ke discovery, sehingga jalur yang diblokir pulih lebih cepat.",
+        "Jejak CI lebih kecil: job tes tidak lagi membuat APK debug, dan artefak rilis lama dihapus otomatis."
+      ]
+    },
+    {
       "version": "1.1.0",
       "date": "2026-11-13",
       "title": "Honest status, steadier tunnels",

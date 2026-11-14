@@ -193,6 +193,18 @@ dulu, memasang `CoroutineExceptionHandler` pada engine CIO, dan meneruskan kegag
 - `Failed` hanya untuk masalah konfigurasi permanen (token tidak valid, binary hilang).
 - Watchdog 150 detik melabeli kegagalan koneksi awal; waktu saat ponsel offline tidak dihitung dan
   percobaan berikutnya menunggu jaringan kembali, agar URL quick tunnel tidak berganti-ganti.
+  Percobaan yang memakai alamat edge pinned memakai batas 60 detik, karena proses itu hanya bisa
+  menjangkau alamat tersebut.
+- **Edge adaptif.** Percobaan pertama memakai `TUNNEL_EDGE` hasil resolve HP (cepat dan tidak butuh
+  SRV). Jika percobaan pinned tidak pernah tersambung — log 14 November 2026 menunjukkan keempat
+  `198.41.192.x:7844` gagal terus saat VPN aktif — percobaan berikutnya mengosongkan `TUNNEL_EDGE`
+  sehingga cloudflared melakukan discovery SRV sendiri lewat resolver yang dipatch. Kedua strategi
+  bergantian sampai ada yang tersambung, dan setelah koneksi berhasil percobaan berikutnya kembali
+  ke pinned. Ini mencegah satu set alamat yang diblokir atau basi mengunci semua retry.
+- **Resolver DNS segar.** `TUNNEL_DNS_SERVERS` dibaca ulang dari `ConnectivityManager` pada setiap
+  peluncuran cloudflared, bukan sekali saat sesi dimulai. Setelah handover Wi-Fi ↔ seluler ↔ VPN,
+  resolver lama (DNS router atau VPN) sering tidak bisa dijangkau di jaringan baru; sebelumnya
+  cloudflared yang restart tetap membawa daftar resolver dari jaringan lama.
 - **`Degraded`**: setelah koneksi awal berhasil, supervisor mem-poll endpoint loopback `/ready`
   milik metrics cloudflared tiap 5 detik. HTTP 503 selama 15 detik berturut-turut berarti tidak ada
   koneksi edge aktif, jadi status turun ke `Degraded` tanpa mematikan proses/URL. HTTP 200
@@ -212,8 +224,8 @@ TUNNEL_LOGLEVEL          -> info
 TUNNEL_METRICS           -> 127.0.0.1:0
 TUNNEL_TOKEN             -> <encrypted named-tunnel token> (named only)
 SSL_CERT_FILE            -> bundle.pem (concatenated system CA stores)
-TUNNEL_DNS_SERVERS       -> detected DNS, comma-separated (patched binary)
-TUNNEL_EDGE              -> numeric region1/region2 edge IPs:7844 (both modes)
+TUNNEL_DNS_SERVERS       -> detected DNS, comma-separated, dibaca ulang tiap percobaan (patched binary)
+TUNNEL_EDGE              -> numeric region1/region2 edge IPs:7844 (both modes; kosong saat fallback discovery)
 TUNNEL_DNS_RESOLVER_ADDRS -> detected DNS (compatibility only; not used for SRV)
 ```
 
