@@ -537,7 +537,9 @@ class PublicPageRenderer {
         }
     }
 
-    private class FolderNode(val name: String) {
+    private class FolderNode(
+        val name: String,
+    ) {
         val folders = linkedMapOf<String, FolderNode>()
         val files = mutableListOf<SharedEntry>()
         var totalFiles = 0
@@ -635,6 +637,8 @@ class PublicPageRenderer {
             if (thumbToken != null) "$previewHref?thumb=${FileNames.escapeHtml(thumbToken)}" else previewHref
         val safeDisplayPath = FileNames.escapeHtml(displayPath)
         val safeSize = FileNames.escapeHtml(size)
+        val eyeIcon = icon("eye")
+        val downloadIcon = icon("download")
         val fileIconSvg = icon(fileIcon(media))
         val thumb =
             when (media) {
