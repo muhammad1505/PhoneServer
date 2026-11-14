@@ -205,9 +205,15 @@ class SafShareContentSource @Inject constructor(
                 logger.warn(TAG, "Cannot list a shared subfolder", error)
                 if (depth == 0) throw ContentUnavailableException("Shared folder permission was revoked", error)
                 return
-            } catch (error: RuntimeException) {
+            } catch (error: IOException) {
                 logger.warn(TAG, "Provider failed while listing a subfolder", error)
                 if (depth == 0) throw ContentUnavailableException("Shared folder cannot be read", error)
+                return
+            } catch (error: RuntimeException) {
+                // A dead or revoked provider is expected; a programming fault is not, so let it
+                // surface at the root instead of reporting the share as merely unavailable.
+                logger.warn(TAG, "Provider failed while listing a subfolder", error)
+                if (depth == 0) throw error
                 return
             }
 
