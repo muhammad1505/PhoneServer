@@ -89,6 +89,8 @@ build() {
 build arm64 "${BUILD_DIR}/cloudflared-linux-arm64"
 build amd64 "${BUILD_DIR}/cloudflared-linux-amd64"
 
+# jniLibs is gitignored, so a clean checkout (CI) has no target directories yet.
+install -d "${ROOT}/app/src/main/jniLibs/arm64-v8a" "${ROOT}/app/src/main/jniLibs/x86_64"
 install -m 0755 "${BUILD_DIR}/cloudflared-linux-arm64" "${ROOT}/app/src/main/jniLibs/arm64-v8a/libcloudflared.so"
 install -m 0755 "${BUILD_DIR}/cloudflared-linux-amd64" "${ROOT}/app/src/main/jniLibs/x86_64/libcloudflared.so"
 
