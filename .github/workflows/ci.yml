@@ -3,6 +3,8 @@ name: PocketShare CI
 on:
   push:
     branches: [main, master, develop]
+    # Without a tags filter, GitHub skips tag pushes for this workflow entirely.
+    tags: ["v*"]
   pull_request:
     branches: [main, master, develop]
   release:
@@ -209,6 +211,5 @@ jobs:
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
-        if: github.event_name == 'release'
         with:
           generate_release_notes: true
