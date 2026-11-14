@@ -269,7 +269,9 @@ class SafShareContentSource @Inject constructor(
                 Document.COLUMN_MIME_TYPE,
                 Document.COLUMN_SIZE,
             )
-        val cursor = resolver.query(childrenUri, projection, null, null, null) ?: throw FileNotFoundException("Provider returned no listing")
+        val cursor =
+            resolver.query(childrenUri, projection, null, null, null)
+                ?: throw FileNotFoundException("Provider returned no listing")
         return cursor.use { listing ->
             buildList {
                 while (listing.moveToNext()) {
