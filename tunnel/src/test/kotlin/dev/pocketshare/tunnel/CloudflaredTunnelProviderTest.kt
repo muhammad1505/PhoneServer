@@ -170,8 +170,10 @@ class CloudflaredTunnelProviderTest {
 
             provider.start(
                 TunnelRequest(
-                    mode = TunnelMode.QUICK,
-                    localPort = 45_612,
+                    mode = TunnelMode.NAMED,
+                    localPort = 8_080,
+                    namedToken = "token",
+                    hostname = "files.example.com",
                     dnsServers = listOf("10.0.0.1"),
                 ),
             )

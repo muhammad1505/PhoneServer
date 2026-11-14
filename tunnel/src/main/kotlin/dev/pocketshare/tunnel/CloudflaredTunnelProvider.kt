@@ -57,12 +57,9 @@ class CloudflaredTunnelProvider(
     private val backoff: BackoffPolicy = ExponentialBackoff(),
     private val logger: AppLogger = NoopLogger,
     private val connectionTimeoutMillis: Long = 150_000L,
-
-    /**
-     * Shorter deadline for an attempt that pinned edge addresses. A pinned process can only ever
-     * reach those addresses, so a network that blocks them (or a stale resolution) needs the
-     * discovery attempt sooner than a process that can pick any edge itself.
-     */
+    // A pinned attempt can only reach the addresses resolved on the phone, so a network that
+    // blocks or reroutes them needs the discovery attempt sooner than a process that can pick
+    // any edge itself.
     private val pinnedConnectTimeoutMillis: Long = 60_000L,
     private val networkOnline: StateFlow<Boolean>? = null,
     private val readinessProbe: ReadinessProbe = HttpReadinessProbe(),
