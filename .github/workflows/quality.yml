@@ -20,6 +20,9 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Setup-android's default package list still asks for the removed `tools` package.
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
 
       - name: Download pinned cloudflared for build
         run: ./scripts/fetch-cloudflared.sh

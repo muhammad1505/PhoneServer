@@ -2,9 +2,9 @@ name: PocketShare CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, master, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main, master, develop]
   release:
     types: [published]
   workflow_dispatch:
@@ -34,6 +34,10 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The action's default package list still includes the removed `tools` package, which
+          # makes sdkmanager exit 1 on current runner images. Install only what the build needs.
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
 
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
@@ -81,6 +85,10 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The action's default package list still includes the removed `tools` package, which
+          # makes sdkmanager exit 1 on current runner images. Install only what the build needs.
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
 
       - name: Download pinned cloudflared for build
         run: ./scripts/fetch-cloudflared.sh
@@ -116,6 +124,10 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The action's default package list still includes the removed `tools` package, which
+          # makes sdkmanager exit 1 on current runner images. Install only what the build needs.
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
 
       - name: Download pinned cloudflared for build
         run: ./scripts/fetch-cloudflared.sh
