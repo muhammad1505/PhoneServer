@@ -97,7 +97,7 @@ jobs:
       # verifies the signed APK, and skipping the extra debug package keeps CI time and artifact
       # storage small.
       - name: Unit + integration tests
-        run: ./gradlew :core:test :server:test :app:testDebugUnitTest :tunnel:test
+        run: ./gradlew :core:test :server:test :data:testDebugUnitTest :app:testDebugUnitTest :tunnel:test
         shell: bash
 
   release:
