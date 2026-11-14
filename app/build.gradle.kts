@@ -11,13 +11,13 @@ val releaseVersionCode =
         .environmentVariable("POCKETSHARE_VERSION_CODE")
         .orNull
         ?.toIntOrNull()
-        ?: 17
+        ?: 10103
 val releaseVersionName =
     providers
         .environmentVariable("POCKETSHARE_VERSION_NAME")
         .orNull
         ?.takeIf { it.isNotBlank() }
-        ?: "1.1.1"
+        ?: "1.1.3"
 
 val releaseKeystorePath = providers.environmentVariable("POCKETSHARE_KEYSTORE").orNull
 val releaseKeystorePassword = providers.environmentVariable("POCKETSHARE_KEYSTORE_PASSWORD").orNull

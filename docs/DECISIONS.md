@@ -2,7 +2,23 @@
 
 Catatan keputusan arsitektur dan keamanan, berurutan dari yang terbaru.
 
-## M10 (saat ini): Edge adaptif dan resolver segar (1.1.1)
+## M11 (saat ini): Pohon folder di halaman publik (1.1.3)
+
+- **`relativePath` adalah sumber struktur.** `SharedEntry` sudah membawa path relatif, jadi halaman
+  share tidak perlu query tambahan: renderer menyusun pohon dari segmen path dan mengelompokkan
+  file per folder. Folder kosong tidak tampil karena listing memang hanya berisi file.
+- **`<details>/<summary>` bukan JavaScript.** Setiap folder adalah satu baris yang membuka isinya
+  sendiri, sehingga navigasi tetap berjalan tanpa JS dan CSP tidak perlu dilonggarkan.
+- **Nama file di dalam folder hanya nama daun.** Path lengkap tidak lagi ditempel ke nama file,
+  agar daftar tidak tercampur; ZIP tetap memakai `relativePath` utuh sebagai entri arsip.
+- **Kartu share memakai `kind`.** `fileCount` untuk share folder selalu 1 (satu tree URI), jadi UI
+  menampilkan label "Folder" alih-alih "1 file".
+- **Ukuran 0 dari provider diperlakukan sebagai tidak diketahui** saat streaming, sehingga respons
+  memakai chunked dan bukan `Content-Length: 0` yang membuat preview/unduhan terlihat kosong.
+- **Putus koneksi klien bukan error server.** `ClosedByteChannelException`/`ChannelWriteException`
+  dan pesan reset/broken pipe dicatat sebagai debug, bukan warning beruntun di log pengguna.
+
+## M10: Edge adaptif dan resolver segar (1.1.1)
 
 - **Percobaan pertama tetap memakai `TUNNEL_EDGE`** hasil `InetAddress` di HP: jalur tercepat dan
   tidak bergantung pada SRV. Namun proses cloudflared tidak bisa mengganti daftar itu sendiri, dan

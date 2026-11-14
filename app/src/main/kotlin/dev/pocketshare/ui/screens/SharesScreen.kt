@@ -461,11 +461,15 @@ private fun ShareRow(
                     )
                     Text(
                         text =
-                            pluralStringResource(
-                                R.plurals.share_file_count,
-                                share.fileCount,
-                                share.fileCount,
-                            ),
+                            if (share.kind == ShareKind.FOLDER) {
+                                stringResource(R.string.share_kind_folder)
+                            } else {
+                                pluralStringResource(
+                                    R.plurals.share_file_count,
+                                    share.fileCount,
+                                    share.fileCount,
+                                )
+                            },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,

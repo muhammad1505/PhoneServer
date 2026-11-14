@@ -103,6 +103,7 @@
     </plurals>
     <string name="share_expires_on">Expires %1$s</string>
     <string name="share_no_expiry">No expiry</string>
+    <string name="share_kind_folder">Folder</string>
     <string name="share_downloads_count">%1$d / %2$d downloads</string>
     <string name="share_downloads_short">%1$d×</string>
     <string name="share_downloads_count_short">%1$d/%2$d</string>

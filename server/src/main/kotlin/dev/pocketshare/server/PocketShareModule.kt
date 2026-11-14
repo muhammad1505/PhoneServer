@@ -231,7 +231,9 @@ private class PublicShareService(
                 respondNotFound(call)
                 return
             }
-            val size = opened.sizeBytes
+            // A provider that reports 0 bytes usually means "size unknown"; the stream is then sent
+            // chunked instead of being announced as an empty file.
+            val size = opened.sizeBytes?.takeIf { it > 0L }
             val selection = RangeParser.parse(call.request.headers[HttpHeaders.Range], size)
             if (selection is RangeSelection.Unsatisfiable || selection is RangeSelection.Unsupported) {
                 closeQuietly(opened.stream)
@@ -614,7 +616,7 @@ private class PublicShareService(
                 respondNotFound(call)
                 return
             }
-            val size = opened.sizeBytes
+            val size = opened.sizeBytes?.takeIf { it > 0L }
             val selection = RangeParser.parse(call.request.headers[HttpHeaders.Range], size)
             if (selection is RangeSelection.Unsatisfiable) {
                 closeQuietly(opened.stream)
@@ -1357,8 +1359,33 @@ private class PublicShareService(
         message: String,
         error: Throwable,
     ) {
-        logger.warn("Http", message, error)
+        // A browser that closes the tab, or an edge that drops an idle stream, is not a server
+        // fault. Logging a stack trace for it buries the failures that actually need attention.
+        if (isClientDisconnect(error)) {
+            logger.debug("Http", "$message: client closed the connection")
+        } else {
+            logger.warn("Http", message, error)
+        }
         if (!call.response.isCommitted) respondServerError(call)
+    }
+
+    private fun isClientDisconnect(error: Throwable): Boolean {
+        var current: Throwable? = error
+        while (current != null) {
+            when (current::class.java.simpleName) {
+                "ClosedByteChannelException", "ChannelWriteException", "AbortedException" -> return true
+            }
+            val text = current.message.orEmpty().lowercase(Locale.ROOT)
+            if (text.contains("connection reset") ||
+                text.contains("broken pipe") ||
+                text.contains("stream closed") ||
+                text.contains("client disconnected")
+            ) {
+                return true
+            }
+            current = current.cause
+        }
+        return false
     }
 
     private fun unreadableEntry(error: Throwable): OpenedContent? {

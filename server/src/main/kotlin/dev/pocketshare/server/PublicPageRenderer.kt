@@ -249,66 +249,19 @@ class PublicPageRenderer {
             }
 
         val fileItems =
-            entries.joinToString("\n") { entry ->
-                val displayPath =
-                    if (share.kind == ShareKind.FOLDER) {
-                        entry.relativePath
-                    } else {
-                        entry.name
-                    }
-                val size = entry.sizeBytes?.let { formatBytes(it, copy.locale) } ?: copy.sizeUnknown
-                val encodedId = FileNames.encodePathSegment(entry.id)
-                val downloadHref = "/s/$token/download/$encodedId"
-                val media = mediaKindOf(entry)
-                val previewHref = "/s/$token/preview/$encodedId"
-                val thumbToken = if (media == MediaKind.IMAGE) thumbnailToken(entry.id) else null
-                val thumbSrc =
-                    if (thumbToken != null) "$previewHref?thumb=${FileNames.escapeHtml(thumbToken)}" else previewHref
-                val safeDisplayPath = FileNames.escapeHtml(displayPath)
-                val safeSize = FileNames.escapeHtml(size)
-                val fileIconSvg = icon(fileIcon(media))
-                val thumb =
-                    when (media) {
-                        MediaKind.IMAGE ->
-                            """<img class="thumb" src="$thumbSrc" loading="lazy" decoding="async" alt="" width="34" height="34">"""
-                        else ->
-                            """<span class="thumb icon-thumb" data-kind="${media.token}" aria-hidden="true">$fileIconSvg</span>"""
-                    }
-                val actions =
-                    when (media) {
-                        MediaKind.IMAGE, MediaKind.VIDEO, MediaKind.AUDIO, MediaKind.PDF,
-                        MediaKind.TEXT,
-                        ->
-                            """
-                            <a class="icon-btn" href="$previewHref" data-preview-src="$previewHref" data-preview-kind="${media.token}" data-preview-title="$safeDisplayPath" data-preview-download="$downloadHref" aria-label="${copy.preview}" title="${copy.preview}">$eyeIcon</a>
-                            <a class="icon-btn" href="$downloadHref" aria-label="${copy.download}" title="${copy.download}">$downloadIcon</a>
-                            """.trimIndent()
-                        MediaKind.OTHER ->
-                            """
-                            <a class="icon-btn" href="$downloadHref" aria-label="${copy.download}" title="${copy.download}">$downloadIcon</a>
-                            """.trimIndent()
-                    }
-                val checkbox =
-                    if (entries.size > 1) {
-                        """
-                        <input class="file-check" type="checkbox" checked value="$encodedId" aria-label="$safeDisplayPath">
-                        """.trimIndent()
-                    } else {
-                        ""
-                    }
-                """
-                <li class="file" data-id="$encodedId">
-                  <div class="file-main">
-                    $checkbox
-                    $thumb
-                    <span class="file-copy">
-                      <span class="file-name"><span class="file-name-text">$safeDisplayPath</span></span>
-                      <span class="file-size">$safeSize</span>
-                    </span>
-                  </div>
-                  <span class="file-actions">$actions</span>
-                </li>
-                """.trimIndent()
+            if (share.kind == ShareKind.FOLDER && entries.any { it.relativePath.contains('/') }) {
+                renderFolderTree(entries, copy, token, thumbnailToken)
+            } else {
+                entries.joinToString("\n") { entry ->
+                    renderFileItem(
+                        entry = entry,
+                        displayPath = if (share.kind == ShareKind.FOLDER) entry.relativePath else entry.name,
+                        copy = copy,
+                        token = token,
+                        thumbnailToken = thumbnailToken,
+                        selectable = entries.size > 1,
+                    )
+                }
             }
 
         // Previews open in a bounded dialog on this page; the plain links stay usable without JS.
@@ -555,6 +508,178 @@ class PublicPageRenderer {
         )
     }
 
+    /**
+     * Shared folders keep their directory structure. Every folder becomes one row that opens its
+     * own contents, so sharing "Photos" never mixes "Photos/2024/jan.jpg" into a single flat list.
+     * Rows are plain <details> elements, which means the tree also works without JavaScript.
+     */
+    private fun renderFolderTree(
+        entries: List<SharedEntry>,
+        copy: Copy,
+        token: String,
+        thumbnailToken: (String) -> String?,
+    ): String {
+        val root = buildFolderTree(entries)
+        val selectable = entries.size > 1
+        return buildString {
+            root.folders.values
+                .sortedBy { it.name.lowercase(Locale.ROOT) }
+                .forEach { child ->
+                    append(renderFolderNode(child, copy, token, thumbnailToken, selectable))
+                    append('\n')
+                }
+            root.files
+                .sortedBy { it.name.lowercase(Locale.ROOT) }
+                .forEach { entry ->
+                    append(renderFileItem(entry, entry.name, copy, token, thumbnailToken, selectable))
+                    append('\n')
+                }
+        }
+    }
+
+    private class FolderNode(val name: String) {
+        val folders = linkedMapOf<String, FolderNode>()
+        val files = mutableListOf<SharedEntry>()
+        var totalFiles = 0
+        var totalBytes = 0L
+        var sizesKnown = true
+    }
+
+    private fun buildFolderTree(entries: List<SharedEntry>): FolderNode {
+        val root = FolderNode("")
+        entries.forEach { entry ->
+            val segments = entry.relativePath.split('/').filter { it.isNotBlank() }
+            var node = root
+            segments.dropLast(1).forEach { segment ->
+                node = node.folders.getOrPut(segment) { FolderNode(segment) }
+            }
+            node.files += entry
+        }
+        measureFolder(root)
+        return root
+    }
+
+    private fun measureFolder(node: FolderNode) {
+        var files = node.files.size
+        var bytes = node.files.sumOf { it.sizeBytes ?: 0L }
+        var known = node.files.all { it.sizeBytes != null }
+        node.folders.values.forEach { child ->
+            measureFolder(child)
+            files += child.totalFiles
+            bytes += child.totalBytes
+            if (!child.sizesKnown) known = false
+        }
+        node.totalFiles = files
+        node.totalBytes = bytes
+        node.sizesKnown = known
+    }
+
+    private fun renderFolderNode(
+        node: FolderNode,
+        copy: Copy,
+        token: String,
+        thumbnailToken: (String) -> String?,
+        selectable: Boolean,
+    ): String {
+        val summarySize = if (node.sizesKnown) formatBytes(node.totalBytes, copy.locale) else copy.sizeUnknown
+        val summaryText = "${node.totalFiles} ${copy.files} \u00b7 $summarySize"
+        val children =
+            buildString {
+                node.folders.values
+                    .sortedBy { it.name.lowercase(Locale.ROOT) }
+                    .forEach { child ->
+                        append(renderFolderNode(child, copy, token, thumbnailToken, selectable))
+                        append('\n')
+                    }
+                node.files
+                    .sortedBy { it.name.lowercase(Locale.ROOT) }
+                    .forEach { entry ->
+                        append(renderFileItem(entry, entry.name, copy, token, thumbnailToken, selectable))
+                        append('\n')
+                    }
+            }
+        return """
+            <li class="folder">
+              <details class="folder-details">
+                <summary class="folder-summary">
+                  <span class="thumb icon-thumb folder-thumb" aria-hidden="true">${icon("folder")}</span>
+                  <span class="file-copy">
+                    <span class="file-name"><span class="file-name-text">${FileNames.escapeHtml(node.name)}</span></span>
+                    <span class="file-size">${FileNames.escapeHtml(summaryText)}</span>
+                  </span>
+                  <span class="folder-chevron" aria-hidden="true">${icon("chevron-right")}</span>
+                </summary>
+                <ul class="files nested">
+                  $children
+                </ul>
+              </details>
+            </li>
+            """.trimIndent()
+    }
+
+    private fun renderFileItem(
+        entry: SharedEntry,
+        displayPath: String,
+        copy: Copy,
+        token: String,
+        thumbnailToken: (String) -> String?,
+        selectable: Boolean,
+    ): String {
+        val size = entry.sizeBytes?.let { formatBytes(it, copy.locale) } ?: copy.sizeUnknown
+        val encodedId = FileNames.encodePathSegment(entry.id)
+        val downloadHref = "/s/$token/download/$encodedId"
+        val media = mediaKindOf(entry)
+        val previewHref = "/s/$token/preview/$encodedId"
+        val thumbToken = if (media == MediaKind.IMAGE) thumbnailToken(entry.id) else null
+        val thumbSrc =
+            if (thumbToken != null) "$previewHref?thumb=${FileNames.escapeHtml(thumbToken)}" else previewHref
+        val safeDisplayPath = FileNames.escapeHtml(displayPath)
+        val safeSize = FileNames.escapeHtml(size)
+        val fileIconSvg = icon(fileIcon(media))
+        val thumb =
+            when (media) {
+                MediaKind.IMAGE ->
+                    """<img class="thumb" src="$thumbSrc" loading="lazy" decoding="async" alt="" width="34" height="34">"""
+                else ->
+                    """<span class="thumb icon-thumb" data-kind="${media.token}" aria-hidden="true">$fileIconSvg</span>"""
+            }
+        val actions =
+            when (media) {
+                MediaKind.IMAGE, MediaKind.VIDEO, MediaKind.AUDIO, MediaKind.PDF,
+                MediaKind.TEXT,
+                ->
+                    """
+                    <a class="icon-btn" href="$previewHref" data-preview-src="$previewHref" data-preview-kind="${media.token}" data-preview-title="$safeDisplayPath" data-preview-download="$downloadHref" aria-label="${copy.preview}" title="${copy.preview}">$eyeIcon</a>
+                    <a class="icon-btn" href="$downloadHref" aria-label="${copy.download}" title="${copy.download}">$downloadIcon</a>
+                    """.trimIndent()
+                MediaKind.OTHER ->
+                    """
+                    <a class="icon-btn" href="$downloadHref" aria-label="${copy.download}" title="${copy.download}">$downloadIcon</a>
+                    """.trimIndent()
+            }
+        val checkbox =
+            if (selectable) {
+                """
+                <input class="file-check" type="checkbox" checked value="$encodedId" aria-label="$safeDisplayPath">
+                """.trimIndent()
+            } else {
+                ""
+            }
+        return """
+            <li class="file" data-id="$encodedId">
+              <div class="file-main">
+                $checkbox
+                $thumb
+                <span class="file-copy">
+                  <span class="file-name"><span class="file-name-text">$safeDisplayPath</span></span>
+                  <span class="file-size">$safeSize</span>
+                </span>
+              </div>
+              <span class="file-actions">$actions</span>
+            </li>
+            """.trimIndent()
+    }
+
     private fun mediaElement(
         kind: String,
         srcHref: String,
@@ -582,6 +707,8 @@ class PublicPageRenderer {
                         """<path d="M4.5 4.5h15v4h-15z"/><path d="M10 12.5h4"/>"""
                 "chevron-left" -> """<path d="M14.5 6 8.5 12l6 6"/>"""
                 "chevron-right" -> """<path d="M9.5 6l6 6-6 6"/>"""
+                "folder" ->
+                    """<path d="M3.5 7.6a2 2 0 0 1 2-2h3.3l1.7 2.1h6a2 2 0 0 1 2 2v7.7a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z"/>"""
                 "fullscreen" ->
                     """<path d="M9 4.5H4.5V9"/><path d="M15 4.5h4.5V9"/><path d="M15 19.5h4.5V15"/><path d="M9 19.5H4.5V15"/>"""
                 "close" -> """<path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/>"""
@@ -818,6 +945,26 @@ class PublicPageRenderer {
             }
             .link-btn:hover { background: var(--soft); }
             .files { list-style: none; padding: 0; margin: 0; }
+            .files.nested { padding-left: 18px; margin-left: 13px; border-left: 1px solid var(--line); }
+            .folder { border-bottom: 1px solid var(--line); }
+            .folder:last-child { border-bottom: 0; }
+            .folder-details > summary { list-style: none; }
+            .folder-details > summary::-webkit-details-marker { display: none; }
+            .folder-summary {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              padding: 8px 6px;
+              border-radius: 8px;
+              cursor: pointer;
+              -webkit-tap-highlight-color: transparent;
+            }
+            .folder-summary:hover { background: var(--soft); }
+            .folder-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+            .folder-thumb { background: var(--soft); }
+            .folder-chevron { margin-left: auto; display: inline-flex; color: var(--muted); transition: transform .15s ease; }
+            .folder-chevron .icon { width: 15px; height: 15px; }
+            .folder-details[open] > .folder-summary .folder-chevron { transform: rotate(90deg); }
             .file { display: flex; align-items: center; gap: 10px; padding: 7px 6px; border-bottom: 1px solid var(--line); }
             .file:last-child { border-bottom: 0; padding-bottom: 3px; }
             .file-main { min-width: 0; display: flex; align-items: center; gap: 10px; flex: 1 1 auto; }

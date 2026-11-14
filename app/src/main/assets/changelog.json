@@ -1,6 +1,40 @@
 {
   "releases": [
     {
+      "version": "1.1.3",
+      "date": "2026-11-14",
+      "title": "Shared folders open like folders",
+      "title_id": "Folder yang dibagikan terbuka seperti folder",
+      "highlights": [
+        "A shared folder keeps its structure now: the page lists folders first, and opening one shows only that folder's files, so nested folders no longer dump everything into one mixed list.",
+        "Every folder row reports its own file count and size, and the ZIP download keeps the original directory layout.",
+        "The share list in the app labels a folder share as a folder instead of counting it as a single file.",
+        "Previews are steadier: a browser that closes a tab is no longer reported as a server error, and a provider that reports a zero size no longer makes a preview or download look empty."
+      ],
+      "highlights_id": [
+        "Folder yang dibagikan kini mempertahankan strukturnya: halaman menampilkan folder lebih dulu, dan membuka satu folder hanya menampilkan file di dalamnya, jadi folder bertingkat tidak lagi menumpahkan semua file ke satu daftar campur.",
+        "Setiap baris folder menampilkan jumlah file dan ukurannya sendiri, dan unduhan ZIP tetap memakai susunan folder asli.",
+        "Daftar berbagi di aplikasi menyebut folder sebagai folder, bukan menghitungnya sebagai satu file.",
+        "Pratinjau lebih stabil: browser yang menutup tab tidak lagi dilaporkan sebagai kesalahan server, dan provider yang melaporkan ukuran nol tidak lagi membuat pratinjau atau unduhan terlihat kosong."
+      ]
+    },
+    {
+      "version": "1.1.2",
+      "date": "2026-11-14",
+      "title": "Live data usage on the home screen",
+      "title_id": "Pemakaian data langsung di beranda",
+      "highlights": [
+        "The home screen shows how much data this sharing session has sent and received, updated while a share is running.",
+        "The mobile data warning moved into a slim banner under the header, so it no longer takes the space of a full card.",
+        "Folders nested inside a shared folder are read again through the provider directly, so a broken provider surfaces instead of looking like an empty share."
+      ],
+      "highlights_id": [
+        "Beranda menampilkan berapa data yang sudah dikirim dan diterima sesi berbagi ini, diperbarui saat berbagi berjalan.",
+        "Peringatan data seluler dipindah ke banner tipis di bawah header, jadi tidak lagi memakan ruang satu kartu penuh.",
+        "Folder di dalam folder yang dibagikan dibaca ulang langsung lewat provider, sehingga provider yang bermasalah terlihat alih-alih tampak seperti share kosong."
+      ]
+    },
+    {
       "version": "1.1.1",
       "date": "2026-11-14",
       "title": "Steadier connections on difficult networks",
