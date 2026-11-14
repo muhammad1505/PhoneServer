@@ -13,11 +13,14 @@ import dev.pocketshare.runtime.ShareRuntime
 import dev.pocketshare.runtime.SharingState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -35,6 +38,11 @@ class HomeViewModel @Inject constructor(
             AppSettings(),
         )
 
+    private val _traffic = MutableStateFlow(TrafficUsage())
+
+    /** Bytes moved by this app since the current sharing session started. */
+    val traffic: StateFlow<TrafficUsage> = _traffic.asStateFlow()
+
     val activeShares: StateFlow<List<ShareSummary>> =
         combine(
             shareRepository.shares,
@@ -42,6 +50,34 @@ class HomeViewModel @Inject constructor(
         ) { shares, now ->
             shares.filter { it.state(now) == ShareState.ACTIVE }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    init {
+        viewModelScope.launch {
+            var baseline: TrafficMeter.Sample? = null
+            while (true) {
+                val sharing = runtime.state.value.isSharing
+                if (!sharing) {
+                    baseline = null
+                    if (_traffic.value.available) _traffic.value = TrafficUsage()
+                } else {
+                    val sample = TrafficMeter.sample()
+                    if (sample == null) {
+                        if (_traffic.value.available) _traffic.value = TrafficUsage()
+                    } else {
+                        val start = baseline ?: sample.also { baseline = it }
+                        _traffic.value =
+                            TrafficUsage(
+                                sentBytes = (sample.sent - start.sent).coerceAtLeast(0L),
+                                receivedBytes = (sample.received - start.received).coerceAtLeast(0L),
+                                available = true,
+                            )
+                    }
+                }
+                // Only poll while a session is up; idle screens should not wake the device.
+                delay(if (sharing) 3_000L else 10_000L)
+            }
+        }
+    }
 
     fun publicLink(token: String): String? = runtime.publicLink(token)
 

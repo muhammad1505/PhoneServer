@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +29,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QrCode2
@@ -38,6 +41,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.QrCode2
+import androidx.compose.material.icons.outlined.SignalCellularAlt
 import androidx.compose.material.icons.outlined.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -95,6 +99,8 @@ import dev.pocketshare.ui.copyLink
 import dev.pocketshare.ui.shareLink
 import dev.pocketshare.ui.theme.LocalBrandColors
 import dev.pocketshare.ui.viewmodel.HomeViewModel
+import dev.pocketshare.ui.viewmodel.TrafficUsage
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -109,6 +115,7 @@ fun HomeScreen(
     val network by viewModel.network.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val activeShares by viewModel.activeShares.collectAsStateWithLifecycle()
+    val traffic by viewModel.traffic.collectAsStateWithLifecycle()
     val brand = LocalBrandColors.current
     var qrLink by remember { mutableStateOf<String?>(null) }
 
@@ -144,11 +151,17 @@ fun HomeScreen(
             BrandHeader(subtitle = stringResource(R.string.app_tagline))
         }
 
+        if (state.isSharing && network.online && !network.isWifi) {
+            item { MobileDataBanner() }
+        }
+
         item {
             HeroCard(
                 state = state,
                 settings = settings,
                 online = network.online,
+                traffic = traffic,
+                onMobileData = network.online && !network.isWifi,
                 onStart = { SharingService.start(context) },
                 onStop = { SharingService.stop(context) },
                 onCopy = ::copy,
@@ -190,13 +203,6 @@ fun HomeScreen(
                     icon = Icons.Outlined.WifiOff,
                     containerColor = brand.warningContainer,
                     contentColor = brand.onWarningContainer,
-                )
-            }
-        } else if (state.isSharing && !network.isWifi) {
-            item {
-                InfoCard(
-                    text = R.string.home_mobile_warning,
-                    icon = Icons.Outlined.WifiOff,
                 )
             }
         }
@@ -260,6 +266,8 @@ private fun HeroCard(
     state: SharingState,
     settings: AppSettings,
     online: Boolean,
+    traffic: TrafficUsage,
+    onMobileData: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
     onCopy: (String?) -> Unit,
@@ -488,6 +496,10 @@ private fun HeroCard(
                 }
             }
 
+            if (sessionActive && traffic.available) {
+                SessionTrafficStrip(traffic = traffic, onMobileData = onMobileData)
+            }
+
             Button(
                 onClick = { if (state.isSharing) onStop() else onStart() },
                 enabled = state.phase != SharingPhase.STOPPING,
@@ -533,6 +545,163 @@ private fun HeroCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MobileDataBanner() {
+    val brand = LocalBrandColors.current
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(brand.warningContainer, brand.warningContainer.copy(alpha = 0.62f)),
+                    ),
+                )
+                .border(1.dp, brand.warning.copy(alpha = 0.30f), RoundedCornerShape(14.dp))
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(brand.warning.copy(alpha = 0.16f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.SignalCellularAlt,
+                contentDescription = null,
+                tint = brand.warning,
+                modifier = Modifier.size(14.dp),
+            )
+        }
+        Text(
+            text = stringResource(R.string.home_mobile_banner),
+            style = MaterialTheme.typography.labelMedium,
+            color = brand.onWarningContainer,
+            maxLines = 1,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .basicMarquee(initialDelayMillis = 1_200, repeatDelayMillis = 1_400),
+        )
+    }
+}
+
+@Composable
+private fun SessionTrafficStrip(
+    traffic: TrafficUsage,
+    onMobileData: Boolean,
+) {
+    val brand = LocalBrandColors.current
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(brand.heroGlass)
+                .border(1.dp, brand.heroGlassBorder, RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.home_traffic_caption).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = brand.heroContentMuted,
+                letterSpacing = 0.9.sp,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = stringResource(if (onMobileData) R.string.home_traffic_mobile else R.string.home_traffic_wifi),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = if (onMobileData) brand.accentGold else brand.heroContentMuted,
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TrafficStat(
+                icon = Icons.Filled.ArrowUpward,
+                label = stringResource(R.string.home_traffic_out),
+                value = formatTraffic(traffic.sentBytes),
+                tint = brand.accentGold,
+                modifier = Modifier.weight(1f),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .padding(horizontal = 10.dp)
+                        .width(1.dp)
+                        .height(22.dp)
+                        .background(brand.heroGlassBorder),
+            )
+            TrafficStat(
+                icon = Icons.Filled.ArrowDownward,
+                label = stringResource(R.string.home_traffic_in),
+                value = formatTraffic(traffic.receivedBytes),
+                tint = brand.success,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TrafficStat(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    val brand = LocalBrandColors.current
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(15.dp),
+        )
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = brand.heroContentMuted,
+            letterSpacing = 0.6.sp,
+            maxLines = 1,
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
+            color = brand.heroContent,
+            maxLines = 1,
+        )
+    }
+}
+
+/** Compact, locale-aware byte counter for the session meter ("9,7 MB"). */
+internal fun formatTraffic(bytes: Long): String {
+    if (bytes < 1_024L) return "$bytes B"
+    val kb = bytes / 1_024.0
+    if (kb < 1_024.0) return String.format(Locale.getDefault(), "%.0f KB", kb)
+    val mb = kb / 1_024.0
+    return when {
+        mb < 10.0 -> String.format(Locale.getDefault(), "%.2f MB", mb)
+        mb < 100.0 -> String.format(Locale.getDefault(), "%.1f MB", mb)
+        mb < 1_024.0 -> String.format(Locale.getDefault(), "%.0f MB", mb)
+        else -> String.format(Locale.getDefault(), "%.2f GB", mb / 1_024.0)
     }
 }
 

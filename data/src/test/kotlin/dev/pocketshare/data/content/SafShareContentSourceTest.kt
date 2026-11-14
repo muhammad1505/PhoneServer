@@ -59,6 +59,20 @@ class SafShareContentSourceTest {
         }
 
     @Test
+    fun `folder listing descends into nested folders`() =
+        runBlocking {
+            provider.addDocument(DocumentEntry("a", "a.txt", "text/plain", sizeBytes = 3L, content = "abc"))
+            provider.addDocument(DocumentEntry("sub", "sub", Document.MIME_TYPE_DIR))
+            provider.addDocument(DocumentEntry("c", "c.txt", "text/plain", sizeBytes = 2L, content = "hi"))
+            provider.setChildren(ROOT_ID, "a", "sub")
+            provider.setChildren("sub", "c")
+
+            val entries = source.list(folderShare())
+
+            assertEquals(listOf("a.txt", "sub/c.txt"), entries.map { it.relativePath })
+        }
+
+    @Test
     fun `revoked folder permission surfaces as content unavailable`() {
         provider.listingFailure = SecurityException("permission revoked")
 

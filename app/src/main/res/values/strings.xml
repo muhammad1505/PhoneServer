@@ -19,7 +19,12 @@
     <string name="home_local_port">Local port %1$d</string>
     <string name="home_bind_loopback">Loopback only</string>
     <string name="home_bind_lan">LAN access enabled</string>
-    <string name="home_mobile_warning">You are using mobile data. Tunnel traffic counts against your data plan.</string>
+    <string name="home_mobile_banner">Mobile data in use — tunnel traffic counts against your data plan</string>
+    <string name="home_traffic_caption">This session</string>
+    <string name="home_traffic_out">Out</string>
+    <string name="home_traffic_in">In</string>
+    <string name="home_traffic_mobile">Mobile data</string>
+    <string name="home_traffic_wifi">Wi-Fi</string>
     <string name="home_active_share_count">%1$d active share(s)</string>
     <string name="home_no_active_shares">No active shares yet.</string>
     <string name="home_start_hint">Create a share, then start the tunnel.</string>

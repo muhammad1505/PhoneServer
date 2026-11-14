@@ -19,7 +19,12 @@
     <string name="home_local_port">Port lokal %1$d</string>
     <string name="home_bind_loopback">Hanya loopback</string>
     <string name="home_bind_lan">Akses LAN aktif</string>
-    <string name="home_mobile_warning">Anda memakai data seluler. Lalu lintas tunnel memakai kuota data Anda.</string>
+    <string name="home_mobile_banner">Data seluler aktif — lalu lintas tunnel memakai kuota Anda</string>
+    <string name="home_traffic_caption">Sesi ini</string>
+    <string name="home_traffic_out">Keluar</string>
+    <string name="home_traffic_in">Masuk</string>
+    <string name="home_traffic_mobile">Data seluler</string>
+    <string name="home_traffic_wifi">Wi-Fi</string>
     <string name="home_active_share_count">%1$d berbagi aktif</string>
     <string name="home_no_active_shares">Belum ada berbagi aktif.</string>
     <string name="home_start_hint">Buat berbagi, lalu mulai tunnel.</string>
