@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.provider.DocumentsContract.Document
 import android.provider.OpenableColumns
 import androidx.documentfile.provider.DocumentFile
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -181,17 +182,26 @@ class SafShareContentSource @Inject constructor(
             throw ContentUnavailableException("Shared folder is missing or permission was revoked")
         }
 
+        val treeDocumentId =
+            try {
+                DocumentsContract.getTreeDocumentId(rootUri)
+            } catch (error: IllegalArgumentException) {
+                throw ContentUnavailableException("Shared folder URI is not a document tree", error)
+            }
         val output = mutableListOf<ResolvedEntry>()
         val visited = mutableSetOf<String>()
-        walkDirectory(root, prefix = "", depth = 0, output = output, visited = visited)
+        walkDirectory(rootUri, treeDocumentId, prefix = "", depth = 0, output = output, visited = visited)
         return output.sortedBy { it.entry.relativePath.lowercase() }
     }
 
-    // Document providers can throw arbitrary runtime exceptions (dead providers, revoked grants,
-    // buggy third-party apps); degrade gracefully instead of crashing the share listing.
+    // Children are queried directly: androidx's TreeDocumentFile.listFiles() swallows every
+    // exception and returns an empty list, which would turn a dead provider into a share that
+    // silently looks empty. Providers can also throw arbitrary runtime exceptions (buggy
+    // third-party apps), so a fault at the root surfaces while nested folders degrade.
     @Suppress("TooGenericExceptionCaught")
     private fun walkDirectory(
-        directory: DocumentFile,
+        treeUri: Uri,
+        documentId: String,
         prefix: String,
         depth: Int,
         output: MutableList<ResolvedEntry>,
@@ -200,55 +210,81 @@ class SafShareContentSource @Inject constructor(
         if (depth > MAX_DEPTH || output.size >= MAX_ENTRIES) return
         val children =
             try {
-                directory.listFiles()
+                listChildren(treeUri, documentId)
             } catch (error: SecurityException) {
-                logger.warn(TAG, "Cannot list a shared subfolder", error)
+                logger.warn(TAG, "Cannot list a shared folder", error)
                 if (depth == 0) throw ContentUnavailableException("Shared folder permission was revoked", error)
                 return
             } catch (error: IOException) {
-                logger.warn(TAG, "Provider failed while listing a subfolder", error)
+                logger.warn(TAG, "Provider failed while listing a folder", error)
                 if (depth == 0) throw ContentUnavailableException("Shared folder cannot be read", error)
                 return
             } catch (error: RuntimeException) {
-                // A dead or revoked provider is expected; a programming fault is not, so let it
-                // surface at the root instead of reporting the share as merely unavailable.
-                logger.warn(TAG, "Provider failed while listing a subfolder", error)
+                logger.warn(TAG, "Provider failed while listing a folder", error)
                 if (depth == 0) throw error
                 return
             }
 
-        children.sortedBy { it.name.orEmpty().lowercase() }.forEach { child ->
-            if (output.size >= MAX_ENTRIES) return
-            val uri =
-                try {
-                    child.uri
-                } catch (_: IllegalStateException) {
-                    return@forEach
-                }
-            if (!visited.add(uri.toString())) return@forEach
+        children.sortedBy { it.name.lowercase() }.forEach { child ->
+            if (output.size >= MAX_ENTRIES) return@forEach
+            if (!visited.add(child.uri.toString())) return@forEach
             val name = FileNames.displayName(child.name, "file")
-            val isDirectory =
-                try {
-                    child.isDirectory
-                } catch (error: IllegalStateException) {
-                    logger.warn(TAG, "Cannot read document type", error)
-                    false
-                }
-            if (isDirectory) {
-                walkDirectory(child, "$prefix$name/", depth + 1, output, visited)
+            if (child.isDirectory) {
+                walkDirectory(treeUri, child.documentId, "$prefix$name/", depth + 1, output, visited)
             } else {
-                val readable =
-                    try {
-                        child.canRead()
-                    } catch (_: IllegalStateException) {
-                        false
-                    }
-                if (readable) {
-                    output +=
-                        ResolvedEntry(
-                            entry = buildEntry(uri, child, name, "$prefix$name"),
-                            uri = uri,
-                        )
+                output +=
+                    ResolvedEntry(
+                        entry =
+                            SharedEntry(
+                                id = opaqueDocumentId(child.uri.toString()),
+                                name = name,
+                                relativePath = FileNames.displayName("$prefix$name", name),
+                                sizeBytes = child.sizeBytes,
+                                mimeType = child.mimeType?.takeIf { it.isNotBlank() } ?: DEFAULT_MIME_TYPE,
+                            ),
+                        uri = child.uri,
+                    )
+            }
+        }
+    }
+
+    private data class DocumentRow(
+        val documentId: String,
+        val uri: Uri,
+        val name: String,
+        val isDirectory: Boolean,
+        val sizeBytes: Long?,
+        val mimeType: String?,
+    )
+
+    private fun listChildren(
+        treeUri: Uri,
+        parentDocumentId: String,
+    ): List<DocumentRow> {
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocumentId)
+        val projection =
+            arrayOf(
+                Document.COLUMN_DOCUMENT_ID,
+                Document.COLUMN_DISPLAY_NAME,
+                Document.COLUMN_MIME_TYPE,
+                Document.COLUMN_SIZE,
+            )
+        val cursor = resolver.query(childrenUri, projection, null, null, null) ?: throw FileNotFoundException("Provider returned no listing")
+        return cursor.use { listing ->
+            buildList {
+                while (listing.moveToNext()) {
+                    val id = listing.getString(DOCUMENT_ID_COLUMN) ?: continue
+                    val mimeType = listing.getString(MIME_TYPE_COLUMN)
+                    add(
+                        DocumentRow(
+                            documentId = id,
+                            uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, id),
+                            name = listing.getString(NAME_COLUMN).orEmpty(),
+                            isDirectory = mimeType == Document.MIME_TYPE_DIR,
+                            sizeBytes = if (listing.isNull(SIZE_COLUMN)) null else listing.getLong(SIZE_COLUMN),
+                            mimeType = mimeType,
+                        ),
+                    )
                 }
             }
         }
@@ -298,7 +334,7 @@ class SafShareContentSource @Inject constructor(
             }
         return documentType?.takeIf { it.isNotBlank() }
             ?: resolver.getType(uri)?.takeIf { it.isNotBlank() }
-            ?: "application/octet-stream"
+            ?: DEFAULT_MIME_TYPE
     }
 
     private companion object {
@@ -307,5 +343,10 @@ class SafShareContentSource @Inject constructor(
         const val MAX_CACHED_SHARES = 8
         const val MAX_DEPTH = 20
         const val MAX_ENTRIES = 5_000
+        const val DEFAULT_MIME_TYPE = "application/octet-stream"
+        const val DOCUMENT_ID_COLUMN = 0
+        const val NAME_COLUMN = 1
+        const val MIME_TYPE_COLUMN = 2
+        const val SIZE_COLUMN = 3
     }
 }
