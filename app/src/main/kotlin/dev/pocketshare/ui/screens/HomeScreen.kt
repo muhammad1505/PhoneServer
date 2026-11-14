@@ -551,16 +551,16 @@ private fun HeroCard(
 @Composable
 private fun MobileDataBanner() {
     val brand = LocalBrandColors.current
+    val bannerBrush =
+        Brush.horizontalGradient(
+            listOf(brand.warningContainer, brand.warningContainer.copy(alpha = 0.62f)),
+        )
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(brand.warningContainer, brand.warningContainer.copy(alpha = 0.62f)),
-                    ),
-                )
+                .background(bannerBrush)
                 .border(1.dp, brand.warning.copy(alpha = 0.30f), RoundedCornerShape(14.dp))
                 .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
