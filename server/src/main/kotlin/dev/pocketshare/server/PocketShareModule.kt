@@ -123,9 +123,9 @@ private class PublicShareService(
     // every one on each page load is what made nested folders feel slow, so keep a small cache.
     private val thumbnailCache =
         object : LinkedHashMap<String, CachedThumbnail>(THUMBNAIL_CACHE_ENTRIES, 0.75f, true) {
-            override fun removeEldestEntry(
-                eldest: MutableMap.MutableEntry<String, CachedThumbnail>?,
-            ): Boolean = size > THUMBNAIL_CACHE_ENTRIES
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CachedThumbnail>?): Boolean {
+                return size > THUMBNAIL_CACHE_ENTRIES
+            }
         }
     private val generalLimiter = RateLimiter { clock.millis() }
     private val passwordLimiter = RateLimiter { clock.millis() }
