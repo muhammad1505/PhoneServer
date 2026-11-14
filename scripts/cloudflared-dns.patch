@@ -1,0 +1,248 @@
+diff -ruN a/cmd/cloudflared/dns_custom.go b/cmd/cloudflared/dns_custom.go
+--- a/cmd/cloudflared/dns_custom.go	1970-01-01 08:00:00.000000000 +0800
++++ b/cmd/cloudflared/dns_custom.go	2026-11-14 09:50:06.586931194 +0800
+@@ -0,0 +1,233 @@
++package main
++
++// Android does not expose a global /etc/resolv.conf to native processes. Go's resolver
++// therefore falls back to [::1]:53, which is normally closed, and every hostname lookup in
++// cloudflared fails even though Android's own resolver works. TUNNEL_DNS_SERVERS is populated
++// by the Pocket Share app from ConnectivityManager/LinkProperties. This file starts a tiny
++// loopback DNS forwarder and points Go's resolver at it so SRV discovery, the quick-tunnel API,
++// and the feature selector all use the phone's real DNS servers.
++
++import (
++	"context"
++	"encoding/binary"
++	"fmt"
++	"io"
++	"net"
++	"os"
++	"strconv"
++	"strings"
++	"sync"
++	"time"
++)
++
++const dnsForwardTimeout = 4 * time.Second
++
++var (
++	dnsUpstreams []string
++	dnsNext      uint32
++	dnsNextMu    sync.Mutex
++)
++
++func configureCustomDNS() {
++	upstreams := parseDNSUpstreams(os.Getenv("TUNNEL_DNS_SERVERS"))
++	if len(upstreams) == 0 {
++		return
++	}
++	dnsUpstreams = upstreams
++
++	udpConn, err := net.ListenPacket("udp", "127.0.0.1:0")
++	if err != nil {
++		return
++	}
++	tcpListener, err := net.Listen("tcp", "127.0.0.1:0")
++	if err != nil {
++		_ = udpConn.Close()
++		return
++	}
++
++	go serveDNSUDP(udpConn)
++	go serveDNSTCP(tcpListener)
++
++	udpAddr := udpConn.LocalAddr().String()
++	tcpAddr := tcpListener.Addr().String()
++	dialer := &net.Dialer{Timeout: dnsForwardTimeout}
++	net.DefaultResolver = &net.Resolver{
++		PreferGo: true,
++		Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
++			if strings.HasPrefix(network, "tcp") {
++				return dialer.DialContext(ctx, "tcp", tcpAddr)
++			}
++			return dialer.DialContext(ctx, "udp", udpAddr)
++		},
++	}
++	fmt.Fprintf(os.Stderr, "custom DNS resolver enabled with %d upstream(s)\n", len(upstreams))
++}
++
++func parseDNSUpstreams(raw string) []string {
++	seen := make(map[string]struct{})
++	var upstreams []string
++	for _, part := range strings.Split(raw, ",") {
++		address := strings.TrimSpace(part)
++		if address == "" {
++			continue
++		}
++		host, port, err := net.SplitHostPort(address)
++		if err != nil {
++			host = address
++			port = "53"
++		}
++		if net.ParseIP(host) == nil {
++			continue
++		}
++		if _, err := strconv.Atoi(port); err != nil {
++			continue
++		}
++		normalized := net.JoinHostPort(host, port)
++		if _, exists := seen[normalized]; exists {
++			continue
++		}
++		seen[normalized] = struct{}{}
++		upstreams = append(upstreams, normalized)
++	}
++	return upstreams
++}
++
++func serveDNSUDP(conn net.PacketConn) {
++	defer conn.Close()
++	buffer := make([]byte, 65535)
++	for {
++		n, remote, err := conn.ReadFrom(buffer)
++		if err != nil {
++			return
++		}
++		query := append([]byte(nil), buffer[:n]...)
++		go func() {
++			if response := forwardDNSPacket(query); response != nil {
++				_, _ = conn.WriteTo(response, remote)
++			}
++		}()
++	}
++}
++
++func serveDNSTCP(listener net.Listener) {
++	defer listener.Close()
++	for {
++		conn, err := listener.Accept()
++		if err != nil {
++			return
++		}
++		go handleDNSTCP(conn)
++	}
++}
++
++func handleDNSTCP(conn net.Conn) {
++	defer conn.Close()
++	_ = conn.SetDeadline(time.Now().Add(2 * dnsForwardTimeout))
++
++	var length [2]byte
++	if _, err := io.ReadFull(conn, length[:]); err != nil {
++		return
++	}
++	size := int(binary.BigEndian.Uint16(length[:]))
++	if size < 12 || size > 65535 {
++		return
++	}
++	query := make([]byte, size)
++	if _, err := io.ReadFull(conn, query); err != nil {
++		return
++	}
++	response := forwardDNSPacketTCP(query)
++	if response == nil {
++		return
++	}
++	binary.BigEndian.PutUint16(length[:], uint16(len(response)))
++	if _, err := conn.Write(length[:]); err != nil {
++		return
++	}
++	_, _ = conn.Write(response)
++}
++
++func forwardDNSPacket(query []byte) []byte {
++	for _, upstream := range orderedDNSUpstreams() {
++		conn, err := net.DialTimeout("udp", upstream, dnsForwardTimeout)
++		if err != nil {
++			continue
++		}
++		_ = conn.SetDeadline(time.Now().Add(dnsForwardTimeout))
++		_, err = conn.Write(query)
++		if err == nil {
++			response := make([]byte, 65535)
++			n, readErr := conn.Read(response)
++			_ = conn.Close()
++			if readErr == nil && n >= 12 && !retryableDNSResponse(response[:n]) {
++				return response[:n]
++			}
++			continue
++		}
++		_ = conn.Close()
++	}
++	return nil
++}
++
++func forwardDNSPacketTCP(query []byte) []byte {
++	for _, upstream := range orderedDNSUpstreams() {
++		conn, err := net.DialTimeout("tcp", upstream, dnsForwardTimeout)
++		if err != nil {
++			continue
++		}
++		_ = conn.SetDeadline(time.Now().Add(dnsForwardTimeout))
++
++		var length [2]byte
++		binary.BigEndian.PutUint16(length[:], uint16(len(query)))
++		if _, err = conn.Write(length[:]); err != nil {
++			_ = conn.Close()
++			continue
++		}
++		if _, err = conn.Write(query); err != nil {
++			_ = conn.Close()
++			continue
++		}
++		if _, err = io.ReadFull(conn, length[:]); err != nil {
++			_ = conn.Close()
++			continue
++		}
++		size := int(binary.BigEndian.Uint16(length[:]))
++		if size < 12 || size > 65535 {
++			_ = conn.Close()
++			continue
++		}
++		response := make([]byte, size)
++		_, err = io.ReadFull(conn, response)
++		_ = conn.Close()
++		if err == nil && !retryableDNSResponse(response) {
++			return response
++		}
++	}
++	return nil
++}
++
++// SERVFAIL and REFUSED are often transient or specific to one resolver; try the next server.
++func retryableDNSResponse(response []byte) bool {
++	if len(response) < 4 {
++		return true
++	}
++	switch response[3] & 0x0f {
++	case 2, 5:
++		return true
++	default:
++		return false
++	}
++}
++
++// Rotate the starting server so one dead resolver does not delay every lookup.
++func orderedDNSUpstreams() []string {
++	dnsNextMu.Lock()
++	start := int(dnsNext % uint32(len(dnsUpstreams)))
++	dnsNext++
++	dnsNextMu.Unlock()
++
++	ordered := make([]string, 0, len(dnsUpstreams))
++	ordered = append(ordered, dnsUpstreams[start:]...)
++	ordered = append(ordered, dnsUpstreams[:start]...)
++	return ordered
++}
+diff -ruN a/cmd/cloudflared/main.go b/cmd/cloudflared/main.go
+--- a/cmd/cloudflared/main.go	2026-11-14 09:50:06.578931092 +0800
++++ b/cmd/cloudflared/main.go	2026-11-14 09:50:06.580931117 +0800
+@@ -49,6 +49,7 @@
+ )
+ 
+ func main() {
++	configureCustomDNS()
+ 	// FIXME: TUN-8148: Disable QUIC_GO ECN due to bugs in proper detection if supported
+ 	os.Setenv("QUIC_GO_DISABLE_ECN", "1")
+ 	metrics.RegisterBuildInfo(BuildType, BuildTime, Version)

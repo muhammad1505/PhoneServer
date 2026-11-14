@@ -1,0 +1,120 @@
+{
+  "releases": [
+    {
+      "version": "1.1.0",
+      "date": "2026-11-13",
+      "title": "Honest status, steadier tunnels",
+      "title_id": "Status jujur, tunnel lebih stabil",
+      "highlights": [
+        "The status now tells the truth: when the Cloudflare edge drops the tunnel, Pocket Share shows 'Unstable' instead of a false 'Active', and keeps your link ready.",
+        "Public links are checked end-to-end through Cloudflare, so silent tunnel failures are caught within about a minute.",
+        "Named tunnels restore themselves automatically when Android restarts the app, with the same address.",
+        "Quick tunnels use HTTP/2 for a steadier connection on mobile networks.",
+        "Sharing keeps working while the screen is off, and the app recovers the link by itself when the network comes back."
+      ],
+      "highlights_id": [
+        "Status kini jujur: saat edge Cloudflare memutus tunnel, Pocket Share menampilkan 'Tidak stabil' alih-alih 'Aktif' palsu, dan tautan tetap disimpan.",
+        "Tautan publik diperiksa menyeluruh lewat Cloudflare, sehingga kegagalan tunnel yang senyap terdeteksi dalam sekitar satu menit.",
+        "Named tunnel pulih otomatis saat Android memulai ulang aplikasi, dengan alamat yang sama.",
+        "Quick tunnel memakai HTTP/2 agar koneksi lebih stabil di jaringan seluler.",
+        "Berbagi tetap berjalan saat layar mati, dan aplikasi memulihkan tautan sendiri begitu jaringan kembali."
+      ]
+    },
+    {
+      "version": "1.0.5",
+      "date": "2026-11-13",
+      "title": "Document previews for more formats",
+      "title_id": "Pratinjau dokumen untuk lebih banyak format",
+      "highlights": [
+        "Preview Word, Excel, PowerPoint, OpenDocument, RTF, and legacy .doc/.xls/.ppt files on public share pages.",
+        "Word and OpenDocument headings and tables keep their structure, spreadsheets render as tables, and slides stay in order.",
+        "PDF and plain-text previews remain available, with a readable text fallback when a document cannot be rendered.",
+        "Previews are generated on your phone; your files are never uploaded.",
+        "The password prompt now has a show/hide toggle, so you can check what you typed before unlocking."
+      ],
+      "highlights_id": [
+        "Pratinjau file Word, Excel, PowerPoint, OpenDocument, RTF, dan format lama .doc/.xls/.ppt di halaman berbagi publik.",
+        "Heading dan tabel Word serta OpenDocument tampil sesuai strukturnya, spreadsheet menjadi tabel, dan slide tetap berurutan.",
+        "Pratinjau PDF dan teks biasa tetap tersedia, dengan fallback teks yang mudah dibaca saat dokumen tidak bisa ditampilkan.",
+        "Pratinjau dibuat di HP Anda; file tidak pernah diunggah.",
+        "Form kata sandi kini punya tombol tampilkan/sembunyikan agar Anda bisa memeriksa ketikan sebelum membuka."
+      ]
+    },
+    {
+      "version": "1.0.4",
+      "date": "2026-11-13",
+      "title": "Previews, portable settings, and smoother sharing",
+      "title_id": "Pratinjau, pengaturan portabel, dan berbagi lebih mulus",
+      "highlights": [
+        "Preview images, videos, and documents in a centered pop-up with previous/next, fullscreen, and download.",
+        "Faster image thumbnails and previews: images are compressed before they travel over the tunnel, while animated GIF, WebP, and APNG keep every frame.",
+        "A smoother splash screen with the Pocket Share logo, tagline, and progress before the app opens.",
+        "Export and import app settings as JSON from the three-dot menu on Settings.",
+        "Long file names on public pages now scroll instead of being cut off.",
+        "A clearer notice when a public link is not published yet, plus a more compact, icon-based share page toolbar."
+      ],
+      "highlights_id": [
+        "Pratinjau gambar, video, dan dokumen dalam pop-up di tengah halaman, lengkap dengan navigasi, layar penuh, dan unduh.",
+        "Thumbnail dan pratinjau gambar lebih cepat: gambar dikompres sebelum melewati tunnel, sedangkan GIF, WebP, dan APNG animasi tetap utuh semua frame-nya.",
+        "Splash screen lebih halus dengan logo Pocket Share, tagline, dan progres sebelum aplikasi terbuka.",
+        "Ekspor dan impor pengaturan aplikasi sebagai JSON lewat menu titik tiga di Pengaturan.",
+        "Nama file panjang di halaman publik kini berjalan (marquee) alih-alih terpotong.",
+        "Pemberitahuan lebih jelas saat tautan publik belum tersedia, plus toolbar halaman berbagi yang lebih ringkas dan berbasis ikon."
+      ]
+    },
+    {
+      "version": "1.0.2",
+      "date": "2026-11-12",
+      "title": "Polished everyday sharing",
+      "title_id": "Berbagi harian yang lebih rapi",
+      "highlights": [
+        "A calmer interface with compact cards, grouped settings, and clearer icons.",
+        "Create a share with multiple files, add more, or remove files before sharing.",
+        "Every share can now be fully edited: name, files, expiry, password, and download limit.",
+        "Diagnostics is now a live dashboard with health checks and a log that refreshes every second.",
+        "A \"What's new\" popup after each update, plus an About screen with changelog and licenses.",
+        "Messages appear as elegant dialogs, and the public page now has a favicon."
+      ],
+      "highlights_id": [
+        "Tampilan lebih tenang dengan kartu ringkas, pengaturan berkelompok, dan ikon yang lebih jelas.",
+        "Buat berbagi dengan banyak file, tambah file lain, atau hapus sebelum dibagikan.",
+        "Setiap berbagi kini bisa diedit lengkap: nama, file, kedaluwarsa, kata sandi, dan batas unduhan.",
+        "Diagnostik menjadi dashboard langsung dengan pemeriksaan kesehatan dan log yang diperbarui tiap detik.",
+        "Popup \"Yang baru\" setelah pembaruan, plus layar Tentang dengan riwayat perubahan dan lisensi.",
+        "Pesan muncul sebagai dialog yang elegan, dan halaman publik kini punya favicon."
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "date": "2026-11-12",
+      "title": "Stable named tunnel",
+      "title_id": "Named tunnel yang stabil",
+      "highlights": [
+        "Cloudflare Tunnel now uses HTTP/2 for a steadier connection on mobile networks.",
+        "Your public link stays the same after the app is restarted.",
+        "Clearer domain setup and diagnostics for named tunnels."
+      ],
+      "highlights_id": [
+        "Cloudflare Tunnel kini memakai HTTP/2 agar koneksi lebih stabil di jaringan seluler.",
+        "Tautan publik tetap sama setelah aplikasi dimulai ulang.",
+        "Pengaturan domain dan diagnostik named tunnel lebih jelas."
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-11-12",
+      "title": "First release",
+      "title_id": "Rilis pertama",
+      "highlights": [
+        "Share files and folders straight from your phone with no uploads.",
+        "Quick tunnels and stable named tunnels with your own domain.",
+        "Password protection, expiry, download limits, QR codes, and bilingual UI."
+      ],
+      "highlights_id": [
+        "Bagikan file dan folder langsung dari HP tanpa mengunggah apa pun.",
+        "Quick tunnel dan named tunnel stabil dengan domain sendiri.",
+        "Kata sandi, kedaluwarsa, batas unduhan, kode QR, dan antarmuka dua bahasa."
+      ]
+    }
+  ]
+}
