@@ -1,6 +1,24 @@
 {
   "releases": [
     {
+      "version": "1.1.4",
+      "date": "2026-11-14",
+      "title": "Folder previews that keep up",
+      "title_id": "Pratinjau folder yang lebih gesit",
+      "highlights": [
+        "A folder share is labelled \"Folder\" on the home screen too, instead of showing \"1 file\".",
+        "Opening previews inside a large or nested folder no longer re-reads the whole tree for every thumbnail, preview and video range request; the page reuses the listing it already built.",
+        "List thumbnails are cached for a short while, so reopening a photo-heavy folder does not re-encode every image, and range requests jump to the requested part instead of reading from the start.",
+        "Tag builds go straight to the signed release: pushing a tag no longer repeats the lint and test jobs that its commit already passed."
+      ],
+      "highlights_id": [
+        "Daftar berbagi folder kini juga bertuliskan \"Folder\" di beranda, bukan \"1 file\".",
+        "Membuka pratinjau di folder besar atau bertingkat tidak lagi membaca ulang seluruh isi folder untuk setiap thumbnail, pratinjau, dan permintaan Range video; halaman memakai daftar yang sudah dibangun.",
+        "Thumbnail daftar di-cache sebentar, jadi membuka ulang folder berisi banyak foto tidak meng-encode ulang setiap gambar, dan permintaan Range melompat ke bagian yang diminta alih-alih membaca dari awal.",
+        "Build dari tag langsung menuju rilis bertanda tangan: push tag tidak lagi mengulang lint dan tes yang sudah lolos di commit-nya."
+      ]
+    },
+    {
       "version": "1.1.3",
       "date": "2026-11-14",
       "title": "Shared folders open like folders",

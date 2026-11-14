@@ -2,7 +2,27 @@
 
 Catatan keputusan arsitektur dan keamanan, berurutan dari yang terbaru.
 
-## M11 (saat ini): Pohon folder di halaman publik (1.1.3)
+## M12 (saat ini): Pratinjau folder tanpa mengulang kerja (1.1.4)
+
+- **Pratinjau mencari `entryId`, bukan seluruh isi share.** Setiap request thumbnail, pratinjau,
+  dan Range video dulu memanggil `content.list()`; pada folder bertingkat itu berarti berjalan
+  ulang seluruh pohon SAF. Port `ShareContentSource` kini punya `find(share, entryId)` yang memakai
+  listing terakhir, dan hanya memaksa satu refresh bila id benar-benar tidak dikenal.
+- **Listing dibangun sekali untuk banyak request.** Halaman dengan puluhan thumbnail menembak
+  request bersamaan; `loadListing` diserialisasi dengan `loadLock` dan mengecek cache sekali lagi
+  di dalam lock, jadi satu pohon tidak dibaca berkali-kali secara paralel saat TTL 15 detik habis.
+- **Thumbnail di-cache terbatas.** Hasil re-encode 320px disimpan di LRU 96 entri dengan TTL 10
+  menit (maks 256 KB per entri). Ini menghindari decode ulang foto yang sama setiap halaman dibuka;
+  pratinjau penuh tetap tidak di-cache dan tetap memakai kuota unduhan sesuai aturan lama.
+- **Range memakai `InputStream.skip()` lebih dulu.** Provider yang seekable bisa melompat langsung
+  ke offset Range; pipe yang mengembalikan 0 tetap jatuh ke mode buang byte seperti sebelumnya.
+- **Tag tidak mengulang CI commit.** Job `check` dan `build-and-test` dilewati saat ref adalah tag,
+  dan job `release` tidak lagi `needs` keduanya, sehingga push tag hanya menjalankan build rilis
+  bertanda tangan. Commit di branch tetap menjalankan seluruh pemeriksaan seperti biasa.
+- **Label folder konsisten.** Beranda memakai `kind` yang sama dengan daftar berbagi, jadi share
+  folder bertuliskan "Folder" alih-alih "1 file".
+
+## M11: Pohon folder di halaman publik (1.1.3)
 
 - **`relativePath` adalah sumber struktur.** `SharedEntry` sudah membawa path relatif, jadi halaman
   share tidak perlu query tambahan: renderer menyusun pohon dari segmen path dan mengelompokkan

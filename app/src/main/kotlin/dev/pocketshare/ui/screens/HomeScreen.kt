@@ -927,14 +927,20 @@ private fun ActiveShareRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                val label =
+                    if (share.kind == ShareKind.FOLDER) {
+                        stringResource(R.string.share_kind_folder)
+                    } else {
+                        pluralStringResource(R.plurals.share_file_count, share.fileCount, share.fileCount)
+                    }
+                val passwordSuffix =
+                    if (share.hasPassword) {
+                        " · " + stringResource(R.string.share_password_short)
+                    } else {
+                        ""
+                    }
                 Text(
-                    text =
-                        pluralStringResource(R.plurals.share_file_count, share.fileCount, share.fileCount) +
-                            if (share.hasPassword) {
-                                " · " + stringResource(R.string.share_password_short)
-                            } else {
-                                ""
-                            },
+                    text = label + passwordSuffix,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

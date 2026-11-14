@@ -51,9 +51,26 @@ class SafShareContentSource @Inject constructor(
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, CachedListing>?): Boolean = size > MAX_CACHED_SHARES
         }
 
+    private val loadLock = Any()
+
     override suspend fun list(share: ShareRecord): List<SharedEntry> =
         withContext(Dispatchers.IO) {
             loadListing(share, force = false).map { it.entry }
+        }
+
+    override suspend fun find(
+        share: ShareRecord,
+        entryId: String,
+    ): SharedEntry? =
+        withContext(Dispatchers.IO) {
+            val cached = cachedEntry(share, entryId)
+            if (cached != null) {
+                cached.entry
+            } else {
+                loadListing(share, force = true)
+                    .firstOrNull { it.entry.id == entryId }
+                    ?.entry
+            }
         }
 
     override suspend fun open(
@@ -61,18 +78,13 @@ class SafShareContentSource @Inject constructor(
         entryId: String,
     ): OpenedContent? =
         withContext(Dispatchers.IO) {
-            var resolved =
-                synchronized(cache) {
-                    cache[share.id]?.entries?.firstOrNull { it.entry.id == entryId }
-                }
-            if (resolved == null) {
-                resolved =
-                    runCatching { loadListing(share, force = true) }
+            val resolved =
+                cachedEntry(share, entryId)
+                    ?: runCatching { loadListing(share, force = true) }
                         .getOrElse {
                             logger.warn(TAG, "Unable to enumerate content for download", it)
                             return@withContext null
                         }.firstOrNull { it.entry.id == entryId }
-            }
             if (resolved == null) return@withContext null
 
             openResolved(resolved) ?: run {
@@ -85,6 +97,19 @@ class SafShareContentSource @Inject constructor(
                         }.firstOrNull { it.entry.id == entryId }
                 if (refreshed == null) null else openResolved(refreshed)
             }
+        }
+
+    /**
+     * Cached listings stay usable for id lookups past [CACHE_TTL_MS]; [open] refreshes when the
+     * document really moved. That keeps preview, thumbnail and range requests from walking a
+     * nested tree again on every request.
+     */
+    private fun cachedEntry(
+        share: ShareRecord,
+        entryId: String,
+    ): ResolvedEntry? =
+        synchronized(cache) {
+            cache[share.id]?.entries?.firstOrNull { it.entry.id == entryId }
         }
 
     private fun openResolved(resolved: ResolvedEntry): OpenedContent? =
@@ -115,27 +140,36 @@ class SafShareContentSource @Inject constructor(
         share: ShareRecord,
         force: Boolean,
     ): List<ResolvedEntry> {
-        val now = System.currentTimeMillis()
         if (!force) {
-            val cached =
-                synchronized(cache) {
-                    cache[share.id]?.takeIf { now - it.createdAtMs <= CACHE_TTL_MS }
-                }
-            if (cached != null) return cached.entries
+            freshListing(share)?.let { return it }
         }
-
-        val entries =
-            when (share.kind) {
-                ShareKind.FILES -> listSelectedFiles(share.files)
-                ShareKind.FOLDER -> listFolder(share)
+        // A page with many thumbnails fires its requests together. Build the listing once instead
+        // of letting every request walk the same nested tree in parallel.
+        synchronized(loadLock) {
+            if (!force) {
+                freshListing(share)?.let { return it }
             }
-        if (entries.isEmpty()) {
-            throw ContentUnavailableException("No readable files remain in this share")
+            val now = System.currentTimeMillis()
+            val entries =
+                when (share.kind) {
+                    ShareKind.FILES -> listSelectedFiles(share.files)
+                    ShareKind.FOLDER -> listFolder(share)
+                }
+            if (entries.isEmpty()) {
+                throw ContentUnavailableException("No readable files remain in this share")
+            }
+            synchronized(cache) {
+                cache[share.id] = CachedListing(entries, now)
+            }
+            return entries
         }
-        synchronized(cache) {
-            cache[share.id] = CachedListing(entries, now)
+    }
+
+    private fun freshListing(share: ShareRecord): List<ResolvedEntry>? {
+        val now = System.currentTimeMillis()
+        return synchronized(cache) {
+            cache[share.id]?.takeIf { now - it.createdAtMs <= CACHE_TTL_MS }?.entries
         }
-        return entries
     }
 
     private fun listSelectedFiles(files: List<ShareFileRef>): List<ResolvedEntry> {

@@ -118,6 +118,15 @@ private class PublicShareService(
             clock = dependencies.clock,
             ttlMillis = config.sessionTtlMillis,
         )
+
+    // Browsing a photo-heavy folder asks for the same list thumbnails again and again. Re-encoding
+    // every one on each page load is what made nested folders feel slow, so keep a small cache.
+    private val thumbnailCache =
+        object : LinkedHashMap<String, CachedThumbnail>(THUMBNAIL_CACHE_ENTRIES, 0.75f, true) {
+            override fun removeEldestEntry(
+                eldest: MutableMap.MutableEntry<String, CachedThumbnail>?,
+            ): Boolean = size > THUMBNAIL_CACHE_ENTRIES
+        }
     private val generalLimiter = RateLimiter { clock.millis() }
     private val passwordLimiter = RateLimiter { clock.millis() }
     private val generalPolicy = RateLimiter.Policy(config.generalRequestsPerMinute, 60_000L)
@@ -403,8 +412,7 @@ private class PublicShareService(
         if (!authorizeDownload(call, share)) return
         if (entryId.isBlank() || entryId.length > 128) return respondNotFound(call)
 
-        val entries = listEntries(call, share) ?: return
-        val entry = entries.firstOrNull { it.id == entryId } ?: return respondNotFound(call)
+        val entry = findEntry(call, share, entryId) ?: return
         // Embed mode drops the page chrome so the share page can show the preview in its dialog.
         val embed = call.request.queryParameters["embed"] == "1"
 
@@ -491,6 +499,15 @@ private class PublicShareService(
         entryId: String,
     ) {
         val transformer = imageTransformer ?: return
+        val thumbnail = hasValidThumbnailToken(call, share, entryId)
+        if (thumbnail) {
+            val cached = cachedThumbnail(share, entryId)
+            if (cached != null) {
+                call.response.headers.append(HttpHeaders.ContentDisposition, inlineDisposition(cached.name))
+                call.respondBytes(cached.bytes, ContentType.parse(cached.mimeType), HttpStatusCode.OK)
+                return
+            }
+        }
         if (!downloadGate.tryAcquire()) {
             respondBusy(call)
             return
@@ -539,7 +556,6 @@ private class PublicShareService(
             return
         }
 
-        val thumbnail = hasValidThumbnailToken(call, share, entryId)
         if (!thumbnail && !store.tryReserveDownload(share.id, clock.millis())) {
             respondNotFound(call)
             return
@@ -575,6 +591,9 @@ private class PublicShareService(
         val contentType =
             encoded?.let { runCatching { ContentType.parse(it.mimeType) }.getOrNull() }
                 ?: inlineContentType(safeContentType(mimeType), name)
+        if (thumbnail && encoded != null) {
+            rememberThumbnail(share, entryId, encoded.bytes, encoded.mimeType, name)
+        }
         call.response.headers.append(HttpHeaders.ContentDisposition, inlineDisposition(name))
         call.respondBytes(encoded?.bytes ?: original, contentType, HttpStatusCode.OK)
     }
@@ -704,22 +723,30 @@ private class PublicShareService(
         }
     }
 
-    private suspend fun listEntries(
+    /**
+     * Resolves the requested entry without listing the whole share again. Null means the response
+     * was already written (not found, gone, or provider failure).
+     */
+    private suspend fun findEntry(
         call: ApplicationCall,
         share: ShareRecord,
-    ): List<SharedEntry>? =
+        entryId: String,
+    ): SharedEntry? =
         try {
-            content.list(share)
+            content.find(share, entryId) ?: run {
+                respondNotFound(call)
+                null
+            }
         } catch (error: ContentUnavailableException) {
             logger.warn("Http", "Shared content is no longer available", error)
             respondNotFound(call)
             null
         } catch (error: IOException) {
-            logger.error("Http", "Unable to list shared content", error)
+            logger.error("Http", "Unable to resolve shared content", error)
             respondServerError(call)
             null
         } catch (error: IllegalStateException) {
-            logger.error("Http", "Unable to list shared content", error)
+            logger.error("Http", "Unable to resolve shared content", error)
             respondServerError(call)
             null
         }
@@ -1034,6 +1061,41 @@ private class PublicShareService(
         entryId: String,
     ): String = "thumb:${share.id}:$entryId"
 
+    private fun cachedThumbnail(
+        share: ShareRecord,
+        entryId: String,
+    ): CachedThumbnail? =
+        synchronized(thumbnailCache) {
+            thumbnailCache[thumbnailKey(share, entryId)]
+                ?.takeIf { clock.millis() - it.createdAtMs <= THUMBNAIL_CACHE_TTL_MS }
+        }
+
+    private fun rememberThumbnail(
+        share: ShareRecord,
+        entryId: String,
+        bytes: ByteArray,
+        mimeType: String,
+        name: String,
+    ) {
+        if (bytes.size > THUMBNAIL_CACHE_MAX_ENTRY_BYTES) return
+        synchronized(thumbnailCache) {
+            thumbnailCache[thumbnailKey(share, entryId)] =
+                CachedThumbnail(bytes = bytes, mimeType = mimeType, name = name, createdAtMs = clock.millis())
+        }
+    }
+
+    private fun thumbnailKey(
+        share: ShareRecord,
+        entryId: String,
+    ): String = "${share.id}:$entryId"
+
+    private class CachedThumbnail(
+        val bytes: ByteArray,
+        val mimeType: String,
+        val name: String,
+        val createdAtMs: Long,
+    )
+
     private fun hasValidThumbnailToken(
         call: ApplicationCall,
         share: ShareRecord,
@@ -1281,10 +1343,17 @@ private class PublicShareService(
         lengthBytes: Long?,
     ) {
         input.use {
+            // Prefer skip() so a seekable provider jumps straight to the requested range instead
+            // of reading every byte before it. Pipes may report 0; then discard until they advance.
             var skipped = 0L
             val discard = ByteArray(DISCARD_BUFFER)
             while (skipped < skipBytes) {
                 context.ensureActive()
+                val step = input.skip(skipBytes - skipped)
+                if (step > 0) {
+                    skipped += step
+                    continue
+                }
                 val wanted = min(discard.size.toLong(), skipBytes - skipped).toInt()
                 val read = input.read(discard, 0, wanted)
                 if (read < 0) return
@@ -1421,6 +1490,9 @@ private class PublicShareService(
         const val PLAYBACK_COOKIE = "ps_play"
         const val THUMBNAIL_MAX_DIMENSION = 320
         const val THUMBNAIL_QUALITY = 74
+        const val THUMBNAIL_CACHE_ENTRIES = 96
+        const val THUMBNAIL_CACHE_MAX_ENTRY_BYTES = 256 * 1024
+        const val THUMBNAIL_CACHE_TTL_MS = 10L * 60L * 1_000L
         const val PREVIEW_MAX_DIMENSION = 1600
         const val PREVIEW_QUALITY = 82
         val PNG_SIGNATURE = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)

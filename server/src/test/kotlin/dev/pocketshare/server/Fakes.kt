@@ -49,6 +49,15 @@ class FakeContentSource(
         return entries
     }
 
+    override suspend fun find(
+        share: ShareRecord,
+        entryId: String,
+    ): SharedEntry? {
+        if (unavailable) throw ContentUnavailableException("gone")
+        unexpectedFailure?.let { throw it }
+        return entries.firstOrNull { it.id == entryId }
+    }
+
     override suspend fun open(
         share: ShareRecord,
         entryId: String,
@@ -80,6 +89,11 @@ class LargeSyntheticContentSource(
         )
 
     override suspend fun list(share: ShareRecord): List<SharedEntry> = listOf(entry)
+
+    override suspend fun find(
+        share: ShareRecord,
+        entryId: String,
+    ): SharedEntry? = entry.takeIf { it.id == entryId }
 
     override suspend fun open(
         share: ShareRecord,

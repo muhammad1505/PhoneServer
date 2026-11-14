@@ -71,7 +71,7 @@ export POCKETSHARE_KEY_PASSWORD=...
 ./gradlew assembleRelease
 ```
 
-`versionCode` dan `versionName` otomatis dari variabel `POCKETSHARE_VERSION_CODE` dan `POCKETSHARE_VERSION_NAME`; tanpa keduanya digunakan `10103` dan `1.1.3`.
+`versionCode` dan `versionName` otomatis dari variabel `POCKETSHARE_VERSION_CODE` dan `POCKETSHARE_VERSION_NAME`; tanpa keduanya digunakan `10104` dan `1.1.4`.
 
 ## Keamanan
 
@@ -88,7 +88,7 @@ export POCKETSHARE_KEY_PASSWORD=...
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — catatan keputusan arsitektur.
 - [`docs/TEST_MATRIX.md`](docs/TEST_MATRIX.md) — matriks uji manual.
 - [`SECURITY.md`](SECURITY.md) — pelaporan kerentanan.
-- [`PRIVACY.md`](PRIVACY.md) — privasi, tidak ada data dikumpulkan, dan model ancaman (TLS berakhir di Cloudflare, tanpa E2EE di 1.1.3).
+- [`PRIVACY.md`](PRIVACY.md) — privasi, tidak ada data dikumpulkan, dan model ancaman (TLS berakhir di Cloudflare, tanpa E2EE di 1.1.4).
 - [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) — notis lisensi pihak ketiga.
 
 ## Lisensi

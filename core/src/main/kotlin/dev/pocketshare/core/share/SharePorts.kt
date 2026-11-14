@@ -32,6 +32,15 @@ class ContentUnavailableException(
 interface ShareContentSource {
     suspend fun list(share: ShareRecord): List<SharedEntry>
 
+    /**
+     * Resolves a single entry. The server calls this for every preview, thumbnail and range request,
+     * so implementations should reuse their last listing instead of enumerating the share again.
+     */
+    suspend fun find(
+        share: ShareRecord,
+        entryId: String,
+    ): SharedEntry?
+
     suspend fun open(
         share: ShareRecord,
         entryId: String,
