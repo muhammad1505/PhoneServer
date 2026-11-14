@@ -104,6 +104,7 @@ class ShareRuntime @Inject constructor(
             baseEnvironmentProvider = cloudflaredRuntime::baseEnvironment,
             workingDirectory = cloudflaredRuntime.workingDirectory,
             edgeAddressProvider = cloudflaredRuntime::edgeAddresses,
+            dnsServerProvider = cloudflaredRuntime::dnsServers,
             logger = logger,
             networkOnline = networkMonitor.online,
         )

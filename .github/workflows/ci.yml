@@ -22,6 +22,7 @@ jobs:
   check:
     name: Lint, detekt, ktlint
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -63,10 +64,12 @@ jobs:
         with:
           name: lint-report
           path: app/build/reports/lint-results-debug.html
+          retention-days: 7
 
   build-and-test:
     name: Build and test
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -85,17 +88,12 @@ jobs:
       - name: Restore Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
+      # Tests only. Debug APKs are deliberately not assembled here: the release job builds and
+      # verifies the signed APK, and skipping the extra debug package keeps CI time and artifact
+      # storage small.
       - name: Unit + integration tests
         run: ./gradlew :core:test :server:test :app:testDebugUnitTest :tunnel:test
         shell: bash
-
-      - name: Assemble debug
-        run: ./gradlew assembleDebug --continue
-        shell: bash
-
-      - name: Verify APK contents
-        run: |
-          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep libcloudflared
 
   release:
     name: Release
@@ -103,8 +101,10 @@ jobs:
     needs: [check, build-and-test]
     if: startsWith(github.ref, 'refs/tags/')
     environment: production
+    timeout-minutes: 60
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
 
@@ -150,17 +150,42 @@ jobs:
           "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk
         shell: bash
 
+      - name: Verify APK contains cloudflared
+        run: |
+          set -o pipefail
+          unzip -l app/build/outputs/apk/release/app-release.apk | grep libcloudflared
+        shell: bash
+
+      # Each release would otherwise leave its APK/AAB in Actions storage forever. Drop artifacts
+      # from earlier runs (any workflow) so the repository stays far below the storage quota.
+      - name: Delete older workflow artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          while read -r artifact_id; do
+            [ -n "${artifact_id}" ] || continue
+            gh api --method DELETE "repos/${repo}/actions/artifacts/${artifact_id}" >/dev/null || true
+          done < <(
+            gh api --paginate "repos/${repo}/actions/artifacts?per_page=100" \
+              --jq ".artifacts[] | select(.workflow_run.id != ${GITHUB_RUN_ID}) | .id"
+          )
+        shell: bash
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: pocketshare-release-apk
           path: app/build/outputs/apk/release/app-release-*.apk
+          retention-days: 30
 
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
           name: pocketshare-release-aab
           path: app/build/outputs/bundle/release/app-release-*.aab
+          retention-days: 30
 
       - name: Publish release
         uses: softprops/action-gh-release@v2

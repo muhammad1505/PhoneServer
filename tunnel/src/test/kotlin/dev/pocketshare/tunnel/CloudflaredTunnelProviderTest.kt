@@ -12,6 +12,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -108,6 +109,85 @@ class CloudflaredTunnelProviderTest {
 
             assertEquals(1, resolutions)
             assertEquals("198.41.192.107:7844", launcher.specs.first().environment["TUNNEL_EDGE"])
+            provider.stop()
+        }
+
+    @Test
+    fun `pinned edge attempt falls back to cloudflared edge discovery`() =
+        runBlocking {
+            val stalled = FakeProcess(lines = emptyList())
+            val second = FakeProcess(lines = listOf("INF Registered tunnel connection connIndex=0"))
+            val launcher = FakeLauncher(listOf(stalled, second))
+            val provider =
+                CloudflaredTunnelProvider(
+                    scope = scope,
+                    binaryPath = binary(),
+                    launcher = launcher,
+                    backoff = BackoffPolicy { 0 },
+                    logger = logger,
+                    edgeAddressProvider = { listOf("198.41.192.107") },
+                    pinnedConnectTimeoutMillis = 0,
+                )
+
+            provider.start(
+                TunnelRequest(
+                    mode = TunnelMode.NAMED,
+                    localPort = 8_080,
+                    namedToken = "token",
+                    hostname = "files.example.com",
+                ),
+            )
+            withTimeout(8_000) {
+                provider.status.first { it is TunnelStatus.Running }
+            }
+
+            assertEquals(2, launcher.specs.size)
+            assertEquals("198.41.192.107:7844", launcher.specs[0].environment["TUNNEL_EDGE"])
+            assertNull(launcher.specs[1].environment["TUNNEL_EDGE"])
+            assertTrue(stalled.destroyed)
+            provider.stop()
+        }
+
+    @Test
+    fun `dns servers are refreshed for every launch attempt`() =
+        runBlocking {
+            val first = FakeProcess(lines = emptyList(), exitCode = 1, stayAlive = false)
+            val second = FakeProcess(lines = listOf("INF Registered tunnel connection connIndex=0"))
+            val launcher = FakeLauncher(listOf(first, second))
+            var lookups = 0
+            val provider =
+                CloudflaredTunnelProvider(
+                    scope = scope,
+                    binaryPath = binary(),
+                    launcher = launcher,
+                    backoff = BackoffPolicy { 0 },
+                    logger = logger,
+                    dnsServerProvider = {
+                        lookups += 1
+                        listOf("192.0.2.$lookups", "8.8.8.8")
+                    },
+                )
+
+            provider.start(
+                TunnelRequest(
+                    mode = TunnelMode.QUICK,
+                    localPort = 45_612,
+                    dnsServers = listOf("10.0.0.1"),
+                ),
+            )
+            withTimeout(8_000) {
+                provider.status.first { it is TunnelStatus.Running }
+            }
+
+            assertEquals(2, launcher.specs.size)
+            assertEquals(
+                "192.0.2.1:53,8.8.8.8:53",
+                launcher.specs[0].environment["TUNNEL_DNS_SERVERS"],
+            )
+            assertEquals(
+                "192.0.2.2:53,8.8.8.8:53",
+                launcher.specs[1].environment["TUNNEL_DNS_SERVERS"],
+            )
             provider.stop()
         }
 

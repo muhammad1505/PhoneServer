@@ -40,6 +40,11 @@ import java.util.concurrent.atomic.AtomicReference
  * also watches the process' loopback `/ready` endpoint. That endpoint answers 200 only while at
  * least one edge connection is active, which lets the UI report [TunnelStatus.Degraded] instead
  * of claiming the link is live while Cloudflare returns 1033.
+ *
+ * Edge addresses resolved on the phone are pinned for the first attempt because that skips SRV
+ * discovery. A process cannot replace that list on its own, so when a pinned attempt never
+ * connects the next attempt leaves `TUNNEL_EDGE` empty and lets cloudflared query SRV through the
+ * patched resolver. That way one blocked or stale address set cannot pin every retry forever.
  */
 class CloudflaredTunnelProvider(
     private val scope: CoroutineScope,
@@ -48,9 +53,17 @@ class CloudflaredTunnelProvider(
     private val baseEnvironmentProvider: () -> Map<String, String> = { emptyMap() },
     private val workingDirectory: File? = null,
     private val edgeAddressProvider: () -> List<String> = { emptyList() },
+    private val dnsServerProvider: () -> List<String> = { emptyList() },
     private val backoff: BackoffPolicy = ExponentialBackoff(),
     private val logger: AppLogger = NoopLogger,
     private val connectionTimeoutMillis: Long = 150_000L,
+
+    /**
+     * Shorter deadline for an attempt that pinned edge addresses. A pinned process can only ever
+     * reach those addresses, so a network that blocks them (or a stale resolution) needs the
+     * discovery attempt sooner than a process that can pick any edge itself.
+     */
+    private val pinnedConnectTimeoutMillis: Long = 60_000L,
     private val networkOnline: StateFlow<Boolean>? = null,
     private val readinessProbe: ReadinessProbe = HttpReadinessProbe(),
     private val readinessPollMillis: Long = 5_000L,
@@ -100,12 +113,13 @@ class CloudflaredTunnelProvider(
 
     private suspend fun supervise(request: TunnelRequest) {
         var attempt = 0
+        var usePinnedEdges = true
         while (currentCoroutineContext().isActive) {
             awaitNetwork(attempt)
             mutableStatus.value = TunnelStatus.Starting(attempt = attempt + 1)
             val outcome =
                 try {
-                    runOnce(request)
+                    runOnce(request, usePinnedEdges)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: IOException) {
@@ -129,6 +143,26 @@ class CloudflaredTunnelProvider(
                 }
 
                 is RunOutcome.Exited -> {
+                    when {
+                        // A tunnel that did connect and later dropped should retry the fast,
+                        // DNS-independent path first.
+                        outcome.connected -> {
+                            attempt = 0
+                            usePinnedEdges = true
+                        }
+
+                        usePinnedEdges -> {
+                            usePinnedEdges = false
+                            logger.info(
+                                TAG,
+                                "Pinned edge addresses did not connect; retrying with cloudflared edge discovery",
+                            )
+                        }
+
+                        // Discovery failed too (for example when SRV is blocked); alternate back
+                        // so neither strategy can stall every attempt on its own.
+                        else -> usePinnedEdges = true
+                    }
                     attempt += 1
                     val wait = backoff.delayMillis(attempt)
                     logger.warn(
@@ -165,20 +199,36 @@ class CloudflaredTunnelProvider(
         online.first { it }
     }
 
-    private suspend fun runOnce(request: TunnelRequest): RunOutcome {
+    private suspend fun runOnce(
+        request: TunnelRequest,
+        usePinnedEdges: Boolean,
+    ): RunOutcome {
         val edgeAddresses =
-            runCatching { edgeAddressProvider() }
-                .getOrDefault(emptyList())
-                .filter { it.isNotBlank() }
-        if (edgeAddresses.isEmpty()) {
+            if (usePinnedEdges) {
+                runCatching { edgeAddressProvider() }
+                    .getOrDefault(emptyList())
+                    .filter { it.isNotBlank() }
+            } else {
+                emptyList()
+            }
+        if (!usePinnedEdges) {
+            logger.info(TAG, "Using cloudflared edge discovery (no pinned addresses)")
+        } else if (edgeAddresses.isEmpty()) {
             logger.warn(TAG, "No Cloudflare edge addresses resolved; cloudflared will use its own DNS")
         } else {
             logger.info(TAG, "Using Cloudflare edge address(es): ${edgeAddresses.joinToString(", ")}")
         }
+        // Resolvers move with the network: a router DNS or VPN resolver from the previous
+        // connection is often unreachable after a Wi-Fi/cellular handover.
+        val dnsServers =
+            runCatching { dnsServerProvider() }
+                .getOrDefault(emptyList())
+                .filter { it.isNotBlank() }
+        val effectiveRequest = if (dnsServers.isEmpty()) request else request.copy(dnsServers = dnsServers)
         val spec =
             try {
                 CloudflaredCommand.build(
-                    request = request,
+                    request = effectiveRequest,
                     binaryPath = binaryPath.absolutePath,
                     baseEnvironment = baseEnvironmentProvider(),
                     workingDirectory = workingDirectory,
@@ -250,12 +300,18 @@ class CloudflaredTunnelProvider(
             scope.launch {
                 monitorReadiness(health, success)
             }
+        val connectDeadline =
+            if (usePinnedEdges) {
+                minOf(connectionTimeoutMillis, pinnedConnectTimeoutMillis)
+            } else {
+                connectionTimeoutMillis
+            }
         val watchdog =
             scope.launch {
                 var waited = 0L
                 while (currentCoroutineContext().isActive &&
                     !success.isCompleted &&
-                    waited < connectionTimeoutMillis
+                    waited < connectDeadline
                 ) {
                     delay(WATCHDOG_TICK_MILLIS)
                     // Time spent offline is not the tunnel's fault; do not kill a process that
@@ -285,7 +341,11 @@ class CloudflaredTunnelProvider(
 
         val fatal = shared.fatal
         if (fatal != null) return RunOutcome.Fatal(fatal)
-        return RunOutcome.Exited(exitCode = exitCode, reason = shared.error)
+        return RunOutcome.Exited(
+            exitCode = exitCode,
+            reason = shared.error,
+            connected = success.isCompleted,
+        )
     }
 
     /**
@@ -383,6 +443,8 @@ class CloudflaredTunnelProvider(
         data class Exited(
             val exitCode: Int,
             val reason: String?,
+            /** Whether this run ever registered an edge connection or published a quick URL. */
+            val connected: Boolean = false,
         ) : RunOutcome
 
         data class Fatal(
