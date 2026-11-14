@@ -70,7 +70,7 @@ export POCKETSHARE_KEYSTORE=/path/pocketshare.jks
 export POCKETSHARE_KEYSTORE_PASSWORD=...
 export POCKETSHARE_KEY_ALIAS=pocketshare
 export POCKETSHARE_KEY_PASSWORD=...
-export POCKETSHARE_VERSION_CODE=17
+export POCKETSHARE_VERSION_CODE=10101   # MAJOR*10000 + MINOR*100 + PATCH untuk 1.1.1
 export POCKETSHARE_VERSION_NAME="1.1.1"
 
 ./gradlew assembleRelease bundleRelease
@@ -81,6 +81,10 @@ unzip -l app/build/outputs/apk/release/app-release.apk | grep libcloudflared
 
 Jalankan uji manual di matriks perangkat (lihat TEST_MATRIX.md), termasuk transfer data ke WiFi dan
 file lebih besar dari 4 GB.
+
+`versionCode` rilis diturunkan dari tag (`v1.1.1` → `10101`) supaya selalu naik antar rilis;
+sebelumnya CI memakai `GITHUB_RUN_NUMBER`, yang bisa lebih kecil dari rilis sebelumnya dan
+membuat APK ditolak sebagai downgrade. Jangan memakai nomor run manual untuk build rilis.
 
 ### Verifikasi rilis 1.0.0 (12 November 2026)
 
@@ -168,7 +172,7 @@ export POCKETSHARE_KEYSTORE="$storeFile"
 export POCKETSHARE_KEYSTORE_PASSWORD="$storePassword"
 export POCKETSHARE_KEY_ALIAS="$keyAlias"
 export POCKETSHARE_KEY_PASSWORD="$keyPassword"
-export POCKETSHARE_VERSION_CODE=17
+export POCKETSHARE_VERSION_CODE=10101   # MAJOR*10000 + MINOR*100 + PATCH untuk 1.1.1
 export POCKETSHARE_VERSION_NAME="1.1.1"
 ./gradlew assembleRelease bundleRelease
 ```

@@ -16,6 +16,8 @@ Catatan keputusan arsitektur dan keamanan, berurutan dari yang terbaru.
   ikut berpindah jaringan; daftar lama tidak berguna setelah handover Wi-Fi/seluler/VPN.
 - **CI tanpa APK debug** pada job tes; verifikasi `libcloudflared.so` dipindah ke APK rilis. Job
   rilis menghapus artifact workflow lama agar kuota penyimpanan GitHub tidak menumpuk.
+- **`versionCode` rilis diturunkan dari tag** (`v1.1.1` → `10101`), bukan `GITHUB_RUN_NUMBER` yang
+  menghitung run dan bisa turun di bawah rilis sebelumnya sehingga APK ditolak sebagai downgrade.
 
 ## M9: Pratinjau dokumen dan seleksi unduhan (1.0.5)
 
