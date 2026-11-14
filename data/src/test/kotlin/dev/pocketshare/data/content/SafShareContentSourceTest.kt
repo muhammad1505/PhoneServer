@@ -31,7 +31,8 @@ import java.io.IOException
 
 /** Exercises the SAF listing paths that decide which provider failures are treated as "gone". */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+// API 36 sandboxes require JDK 21; CI runs the tests on JDK 17.
+@Config(sdk = [35])
 class SafShareContentSourceTest {
     private lateinit var provider: FakeDocumentsProvider
     private lateinit var source: SafShareContentSource
