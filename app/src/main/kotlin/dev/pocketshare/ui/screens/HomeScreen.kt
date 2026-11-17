@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Folder
@@ -84,6 +85,7 @@ import dev.pocketshare.data.settings.AppSettings
 import dev.pocketshare.runtime.Reachability
 import dev.pocketshare.runtime.SharingPhase
 import dev.pocketshare.runtime.SharingState
+import dev.pocketshare.runtime.TrafficUsage
 import dev.pocketshare.service.SharingService
 import dev.pocketshare.tunnel.TunnelStatus
 import dev.pocketshare.ui.UiMessage
@@ -95,12 +97,12 @@ import dev.pocketshare.ui.components.InfoCard
 import dev.pocketshare.ui.components.LocalUiMessageHost
 import dev.pocketshare.ui.components.QrDialog
 import dev.pocketshare.ui.components.SectionHeader
+import dev.pocketshare.ui.components.TrafficHistoryDialog
+import dev.pocketshare.ui.components.formatTraffic
 import dev.pocketshare.ui.copyLink
 import dev.pocketshare.ui.shareLink
 import dev.pocketshare.ui.theme.LocalBrandColors
 import dev.pocketshare.ui.viewmodel.HomeViewModel
-import dev.pocketshare.ui.viewmodel.TrafficUsage
-import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -118,6 +120,7 @@ fun HomeScreen(
     val traffic by viewModel.traffic.collectAsStateWithLifecycle()
     val brand = LocalBrandColors.current
     var qrLink by remember { mutableStateOf<String?>(null) }
+    var showTrafficHistory by remember { mutableStateOf(false) }
 
     fun copy(link: String?) {
         if (link == null) {
@@ -167,6 +170,7 @@ fun HomeScreen(
                 onCopy = ::copy,
                 onShare = ::share,
                 onShowQr = { link -> qrLink = link },
+                onOpenTrafficHistory = { showTrafficHistory = true },
             )
         }
 
@@ -259,6 +263,13 @@ fun HomeScreen(
     qrLink?.let { link ->
         QrDialog(link = link, onDismiss = { qrLink = null })
     }
+
+    if (showTrafficHistory) {
+        TrafficHistoryDialog(
+            loadHistory = viewModel::trafficHistory,
+            onDismiss = { showTrafficHistory = false },
+        )
+    }
 }
 
 @Composable
@@ -273,6 +284,7 @@ private fun HeroCard(
     onCopy: (String?) -> Unit,
     onShare: (String?) -> Unit,
     onShowQr: (String) -> Unit,
+    onOpenTrafficHistory: () -> Unit,
 ) {
     val brand = LocalBrandColors.current
     val sessionActive = state.phase == SharingPhase.RUNNING
@@ -497,7 +509,11 @@ private fun HeroCard(
             }
 
             if (sessionActive && traffic.available) {
-                SessionTrafficStrip(traffic = traffic, onMobileData = onMobileData)
+                SessionTrafficStrip(
+                    traffic = traffic,
+                    onMobileData = onMobileData,
+                    onOpenHistory = onOpenTrafficHistory,
+                )
             }
 
             Button(
@@ -598,6 +614,7 @@ private fun MobileDataBanner() {
 private fun SessionTrafficStrip(
     traffic: TrafficUsage,
     onMobileData: Boolean,
+    onOpenHistory: () -> Unit,
 ) {
     val brand = LocalBrandColors.current
     Column(
@@ -605,6 +622,7 @@ private fun SessionTrafficStrip(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onOpenHistory)
                 .background(brand.heroGlass)
                 .border(1.dp, brand.heroGlassBorder, RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 9.dp),
@@ -623,6 +641,13 @@ private fun SessionTrafficStrip(
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = if (onMobileData) brand.accentGold else brand.heroContentMuted,
+            )
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                imageVector = Icons.Outlined.BarChart,
+                contentDescription = stringResource(R.string.traffic_chart_open),
+                tint = brand.heroContentMuted,
+                modifier = Modifier.size(15.dp),
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -688,20 +713,6 @@ private fun TrafficStat(
             color = brand.heroContent,
             maxLines = 1,
         )
-    }
-}
-
-/** Compact, locale-aware byte counter for the session meter ("9,7 MB"). */
-internal fun formatTraffic(bytes: Long): String {
-    if (bytes < 1_024L) return "$bytes B"
-    val kb = bytes / 1_024.0
-    if (kb < 1_024.0) return String.format(Locale.getDefault(), "%.0f KB", kb)
-    val mb = kb / 1_024.0
-    return when {
-        mb < 10.0 -> String.format(Locale.getDefault(), "%.2f MB", mb)
-        mb < 100.0 -> String.format(Locale.getDefault(), "%.1f MB", mb)
-        mb < 1_024.0 -> String.format(Locale.getDefault(), "%.0f MB", mb)
-        else -> String.format(Locale.getDefault(), "%.2f GB", mb / 1_024.0)
     }
 }
 

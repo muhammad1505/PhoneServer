@@ -86,6 +86,7 @@ class ShareRuntime @Inject constructor(
     private val namedTunnelRepository: NamedTunnelRepository,
     private val cloudflaredRuntime: dev.pocketshare.tunnel.CloudflaredRuntime,
     private val networkMonitor: NetworkMonitor,
+    private val trafficMonitor: TrafficMonitor,
     private val clock: Clock,
     private val secureRandom: SecureRandom,
 ) {
@@ -122,6 +123,9 @@ class ShareRuntime @Inject constructor(
     private var autoStopJob: Job? = null
 
     init {
+        // Sampling lives in this singleton so hourly history keeps growing while sharing in
+        // the background, even when no screen is observing the session meter.
+        trafficMonitor.observe(mutableState)
         scope.launch {
             tunnel.status.collect(::onTunnelStatus)
         }

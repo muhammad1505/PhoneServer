@@ -1,7 +1,6 @@
 package dev.pocketshare.ui.viewmodel
 
 import android.content.Context
-import android.os.PowerManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,11 +17,9 @@ import dev.pocketshare.data.settings.SettingsRepository
 import dev.pocketshare.ui.UiMessage
 import dev.pocketshare.ui.UiTone
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -37,18 +34,6 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
     private val mutableMessages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 8)
     val messages = mutableMessages.asSharedFlow()
-
-    private val mutableBatteryUnrestricted = MutableStateFlow(readBatteryUnrestricted())
-    val batteryUnrestricted: StateFlow<Boolean> = mutableBatteryUnrestricted.asStateFlow()
-
-    fun refreshBatteryStatus() {
-        mutableBatteryUnrestricted.value = readBatteryUnrestricted()
-    }
-
-    private fun readBatteryUnrestricted(): Boolean {
-        val power = context.getSystemService(PowerManager::class.java)
-        return power?.isIgnoringBatteryOptimizations(context.packageName) ?: false
-    }
 
     val settings: StateFlow<AppSettings> =
         settingsRepository.settings.stateIn(

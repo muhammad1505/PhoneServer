@@ -19,6 +19,7 @@ import dev.pocketshare.core.share.ShareStore
 import dev.pocketshare.data.content.SafShareContentSource
 import dev.pocketshare.data.db.PocketShareDatabase
 import dev.pocketshare.data.db.ShareDao
+import dev.pocketshare.data.db.TrafficSampleDao
 import dev.pocketshare.data.log.FileAppLogger
 import dev.pocketshare.data.repository.DefaultShareRepository
 import dev.pocketshare.data.repository.ShareRepository
@@ -54,10 +55,17 @@ abstract class DataModule {
         @Singleton
         fun provideDatabase(
             @ApplicationContext context: Context,
-        ): PocketShareDatabase = Room.databaseBuilder(context, PocketShareDatabase::class.java, "pocketshare.db").build()
+        ): PocketShareDatabase =
+            Room
+                .databaseBuilder(context, PocketShareDatabase::class.java, "pocketshare.db")
+                .addMigrations(PocketShareDatabase.MIGRATION_1_2)
+                .build()
 
         @Provides
         fun provideShareDao(database: PocketShareDatabase): ShareDao = database.shareDao()
+
+        @Provides
+        fun provideTrafficDao(database: PocketShareDatabase): TrafficSampleDao = database.trafficDao()
 
         @Provides
         @Singleton

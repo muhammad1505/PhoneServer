@@ -43,6 +43,7 @@ import dev.pocketshare.core.model.ShareState
 import dev.pocketshare.ui.theme.LocalBrandColors
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
 
 @Composable
 fun BrandMark(
@@ -363,6 +364,20 @@ fun expiryLabel(expiry: ShareExpiry): Int =
     }
 
 fun formatDateTime(epochMs: Long): String = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(epochMs))
+
+/** Compact, locale-aware byte counter for traffic meters and charts ("9,7 MB"). */
+fun formatTraffic(bytes: Long): String {
+    if (bytes < 1_024L) return "$bytes B"
+    val kb = bytes / 1_024.0
+    if (kb < 1_024.0) return String.format(Locale.getDefault(), "%.0f KB", kb)
+    val mb = kb / 1_024.0
+    return when {
+        mb < 10.0 -> String.format(Locale.getDefault(), "%.2f MB", mb)
+        mb < 100.0 -> String.format(Locale.getDefault(), "%.1f MB", mb)
+        mb < 1_024.0 -> String.format(Locale.getDefault(), "%.0f MB", mb)
+        else -> String.format(Locale.getDefault(), "%.2f GB", mb / 1_024.0)
+    }
+}
 
 @Composable
 fun GroupCard(

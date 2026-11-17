@@ -1,9 +1,8 @@
 package dev.pocketshare.ui.screens
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -36,10 +35,14 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lan
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Wifi
@@ -49,6 +52,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -65,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -85,13 +90,15 @@ import dev.pocketshare.core.model.AppLanguage
 import dev.pocketshare.core.model.ShareExpiry
 import dev.pocketshare.core.model.TunnelMode
 import dev.pocketshare.core.util.HostnameValidator
+import dev.pocketshare.runtime.BackgroundAccess
+import dev.pocketshare.runtime.BackgroundAccessTarget
 import dev.pocketshare.ui.UiMessage
 import dev.pocketshare.ui.UiTone
 import dev.pocketshare.ui.components.GroupCard
 import dev.pocketshare.ui.components.GroupDivider
-import dev.pocketshare.ui.components.IconTile
 import dev.pocketshare.ui.components.LocalUiMessageHost
 import dev.pocketshare.ui.components.ScreenHeader
+import dev.pocketshare.ui.components.StatusPill
 import dev.pocketshare.ui.components.expiryLabel
 import dev.pocketshare.ui.theme.LocalBrandColors
 import dev.pocketshare.ui.viewmodel.SettingsViewModel
@@ -105,7 +112,6 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val showMessage = LocalUiMessageHost.current
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val namedTunnel by viewModel.namedTunnel.collectAsStateWithLifecycle()
-    val batteryUnrestricted by viewModel.batteryUnrestricted.collectAsStateWithLifecycle()
     val brand = LocalBrandColors.current
 
     var selectedMode by rememberSaveable { mutableStateOf(settings.tunnelMode) }
@@ -134,10 +140,6 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             if (message.textRes == R.string.settings_saved) tokenInput = ""
             showMessage(message)
         }
-    }
-
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        viewModel.refreshBatteryStatus()
     }
 
     val previewHostname =
@@ -499,86 +501,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         }
 
         item {
-            SettingsGroup(
-                icon = Icons.Outlined.BatteryStd,
-                title = stringResource(R.string.settings_battery),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    IconTile(
-                        icon = Icons.Outlined.BatteryStd,
-                        size = 34.dp,
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor =
-                            if (batteryUnrestricted) {
-                                brand.success
-                            } else {
-                                brand.onWarningContainer
-                            },
-                    )
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text =
-                                    stringResource(
-                                        if (batteryUnrestricted) {
-                                            R.string.battery_optimized
-                                        } else {
-                                            R.string.battery_not_optimized
-                                        },
-                                    ),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.weight(1f),
-                            )
-                            Surface(
-                                shape = CircleShape,
-                                color =
-                                    if (batteryUnrestricted) {
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    } else {
-                                        brand.warningContainer
-                                    },
-                            ) {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (batteryUnrestricted) {
-                                                    brand.success
-                                                } else {
-                                                    brand.warning
-                                                },
-                                            ),
-                                )
-                            }
-                        }
-                        Text(
-                            text = stringResource(R.string.settings_battery_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        TextButton(
-                            onClick = {
-                                if (!openBatterySettings(context, context.packageName)) {
-                                    showMessage(
-                                        UiMessage(R.string.settings_battery_open_failed, UiTone.ERROR),
-                                    )
-                                }
-                            },
-                            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp),
-                        ) {
-                            Text(stringResource(R.string.settings_battery_button))
-                        }
-                    }
-                }
-            }
+            BackgroundAccessGroup()
         }
 
         item {
@@ -601,6 +524,9 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 private fun SettingsGroup(
     icon: ImageVector,
     title: String,
+    badge: String? = null,
+    badgeContainerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    badgeContentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -621,11 +547,365 @@ private fun SettingsGroup(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 letterSpacing = 0.8.sp,
             )
+            if (badge != null) {
+                Spacer(Modifier.weight(1f))
+                Surface(
+                    shape = CircleShape,
+                    color = badgeContainerColor,
+                    contentColor = badgeContentColor,
+                ) {
+                    Text(
+                        text = badge,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+            }
         }
         GroupCard {
             content()
         }
     }
+}
+
+@Composable
+private fun BackgroundAccessGroup() {
+    val context = LocalContext.current
+    val showMessage = LocalUiMessageHost.current
+    val brand = LocalBrandColors.current
+    val access = remember(context) { BackgroundAccess(context) }
+    var status by remember { mutableStateOf(access.status()) }
+    var notificationRequested by rememberSaveable { mutableStateOf(false) }
+    val notificationPermission =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission(),
+        ) { granted ->
+            notificationRequested = true
+            status = access.status()
+            if (!granted) {
+                showMessage(UiMessage(R.string.background_notification_denied, UiTone.INFO))
+            }
+        }
+
+    // Covers returning from the system battery, autostart, and notification screens.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        status = access.status()
+    }
+
+    val needsAttention = status.needsAttention
+    SettingsGroup(
+        icon = Icons.Outlined.BatteryStd,
+        title = stringResource(R.string.settings_background),
+        badge = stringResource(if (needsAttention) R.string.background_badge_attention else R.string.background_badge_ready),
+        badgeContainerColor = if (needsAttention) brand.warningContainer else MaterialTheme.colorScheme.primaryContainer,
+        badgeContentColor = if (needsAttention) brand.onWarningContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        BackgroundStatusRow(
+            title = stringResource(R.string.background_battery_title),
+            subtitle =
+                stringResource(
+                    if (status.batteryOptimizationIgnored) {
+                        R.string.background_battery_ok
+                    } else {
+                        R.string.background_battery_limited
+                    },
+                ),
+            ready = status.batteryOptimizationIgnored,
+            badge =
+                stringResource(
+                    if (status.batteryOptimizationIgnored) {
+                        R.string.background_badge_safe
+                    } else {
+                        R.string.background_badge_limited
+                    },
+                ),
+        )
+
+        status.backgroundRestricted?.let { restricted ->
+            GroupDivider(startPadding = 12.dp)
+            BackgroundStatusRow(
+                title = stringResource(R.string.background_restriction_title),
+                subtitle =
+                    stringResource(
+                        if (restricted) {
+                            R.string.background_restriction_on
+                        } else {
+                            R.string.background_restriction_off
+                        },
+                    ),
+                ready = !restricted,
+                badge =
+                    stringResource(
+                        if (restricted) {
+                            R.string.background_badge_restricted
+                        } else {
+                            R.string.background_badge_normal
+                        },
+                    ),
+            )
+        }
+
+        status.dataSaverRestricted?.let { restricted ->
+            GroupDivider(startPadding = 12.dp)
+            BackgroundStatusRow(
+                title = stringResource(R.string.background_data_saver_title),
+                subtitle =
+                    stringResource(
+                        if (restricted) {
+                            R.string.background_data_saver_on
+                        } else {
+                            R.string.background_data_saver_off
+                        },
+                    ),
+                ready = !restricted,
+                badge =
+                    stringResource(
+                        if (restricted) {
+                            R.string.background_badge_on
+                        } else {
+                            R.string.background_badge_off
+                        },
+                    ),
+            )
+        }
+
+        GroupDivider(startPadding = 12.dp)
+        BackgroundStatusRow(
+            title = stringResource(R.string.background_notifications_title),
+            subtitle =
+                stringResource(
+                    if (status.notificationsEnabled) {
+                        R.string.background_notifications_on
+                    } else {
+                        R.string.background_notifications_off
+                    },
+                ),
+            ready = status.notificationsEnabled,
+            badge =
+                stringResource(
+                    if (status.notificationsEnabled) {
+                        R.string.background_badge_allowed
+                    } else {
+                        R.string.background_badge_blocked
+                    },
+                ),
+        )
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            BackgroundAccessButton(
+                text = stringResource(R.string.background_action_battery),
+                icon = Icons.Outlined.BatteryStd,
+                tint =
+                    if (status.batteryOptimizationIgnored) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        brand.warning
+                    },
+                onClick = {
+                    if (!launchBackgroundTargets(context, access.batteryTargets())) {
+                        showMessage(UiMessage(R.string.background_open_failed, UiTone.ERROR))
+                    }
+                    status = access.status()
+                },
+                modifier = Modifier.weight(1f),
+            )
+            BackgroundAccessButton(
+                text = stringResource(R.string.background_action_autostart),
+                icon = Icons.Outlined.Restore,
+                tint = MaterialTheme.colorScheme.primary,
+                onClick = {
+                    if (!launchBackgroundTargets(context, access.autoStartTargets())) {
+                        showMessage(UiMessage(R.string.background_open_failed, UiTone.ERROR))
+                    }
+                    status = access.status()
+                },
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            val canRequestPermission = status.notificationPermissionRequired && !notificationRequested
+            BackgroundAccessButton(
+                text =
+                    stringResource(
+                        if (status.notificationsEnabled) {
+                            R.string.background_action_notifications
+                        } else {
+                            R.string.background_action_allow_notifications
+                        },
+                    ),
+                icon = Icons.Outlined.NotificationsActive,
+                tint =
+                    if (status.notificationsEnabled) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        brand.warning
+                    },
+                onClick = {
+                    if (!status.notificationsEnabled && canRequestPermission) {
+                        notificationRequested = true
+                        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        val targets =
+                            listOf(
+                                BackgroundAccessTarget(
+                                    labelRes = R.string.background_label_notifications,
+                                    intent = access.notificationSettingsIntent(),
+                                ),
+                            )
+                        if (!launchBackgroundTargets(context, targets)) {
+                            showMessage(UiMessage(R.string.background_open_failed, UiTone.ERROR))
+                        }
+                        status = access.status()
+                    }
+                },
+                modifier = Modifier.weight(1f),
+            )
+            val dataSaverRestricted = status.dataSaverRestricted == true
+            BackgroundAccessButton(
+                text =
+                    stringResource(
+                        if (dataSaverRestricted) {
+                            R.string.background_action_data_saver
+                        } else {
+                            R.string.background_action_app_info
+                        },
+                    ),
+                icon = if (dataSaverRestricted) Icons.Outlined.Sync else Icons.Outlined.Info,
+                tint = if (dataSaverRestricted) brand.warning else MaterialTheme.colorScheme.onSurfaceVariant,
+                onClick = {
+                    val targets =
+                        if (dataSaverRestricted) {
+                            access.dataSaverTargets()
+                        } else {
+                            listOf(
+                                BackgroundAccessTarget(
+                                    labelRes = R.string.background_label_app_info,
+                                    intent = access.appDetailsIntent(),
+                                ),
+                            )
+                        }
+                    if (!launchBackgroundTargets(context, targets)) {
+                        showMessage(UiMessage(R.string.background_open_failed, UiTone.ERROR))
+                    }
+                    status = access.status()
+                },
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Text(
+            text =
+                stringResource(
+                    R.string.background_note,
+                    stringResource(access.autoStartLabelRes()),
+                    stringResource(access.guideRes()),
+                ),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun BackgroundStatusRow(
+    title: String,
+    subtitle: String,
+    ready: Boolean,
+    badge: String,
+) {
+    val brand = LocalBrandColors.current
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        StatusPill(
+            text = badge,
+            containerColor = if (ready) brand.success.copy(alpha = 0.14f) else brand.warningContainer,
+            contentColor = if (ready) brand.success else brand.onWarningContainer,
+        )
+    }
+}
+
+@Composable
+private fun BackgroundAccessButton(
+    text: String,
+    icon: ImageVector,
+    tint: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(15.dp),
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * Starts the first target that the ROM accepts. `startActivity` is used instead
+ * of resolving components first so Android 11 package visibility does not hide
+ * an OEM settings activity that actually exists.
+ */
+private fun launchBackgroundTargets(
+    context: Context,
+    targets: List<BackgroundAccessTarget>,
+): Boolean {
+    for (target in targets) {
+        val started =
+            runCatching {
+                context.startActivity(
+                    Intent(target.intent).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }.isSuccess
+        if (started) return true
+    }
+    return false
 }
 
 @Composable
@@ -1037,21 +1317,3 @@ private fun languageLabel(language: AppLanguage): Int =
     }
 
 private val AUTO_STOP_OPTIONS = listOf(0, 15, 30, 60, 120, 240, 480)
-
-/**
- * Opens the exemption flow for this app first: some OEM battery screens omit sideloaded apps from
- * the generic optimization list, while the per-app request always names Pocket Share.
- */
-private fun openBatterySettings(
-    context: Context,
-    packageName: String,
-): Boolean {
-    val packageUri = Uri.parse("package:$packageName")
-    val intents =
-        listOf(
-            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, packageUri),
-            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri),
-            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
-        )
-    return intents.any { intent -> runCatching { context.startActivity(intent) }.isSuccess }
-}
