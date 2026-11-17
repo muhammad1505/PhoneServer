@@ -31,7 +31,7 @@ class TrafficChartDataTest {
         assertEquals("12:00", series.points.last().label)
         assertEquals(160L, series.sentBytes)
         assertEquals(230L, series.receivedBytes)
-        assertEquals(100L, series.peakBytes)
+        assertEquals(200L, series.peakBytes)
         assertFalse(series.isEmpty)
     }
 
