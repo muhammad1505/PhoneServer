@@ -1,6 +1,26 @@
 {
   "releases": [
     {
+      "version": "1.1.5",
+      "date": "2026-11-17",
+      "title": "A tunnel that stays awake",
+      "title_id": "Tunnel yang tetap terjaga",
+      "highlights": [
+        "Settings now has a Background & autostart panel: see at a glance whether battery optimization, background restrictions, Data Saver, or notifications can stop the tunnel, then jump straight to the right system screen.",
+        "The same panel detects the phone brand and offers the matching autostart manager, plus short steps for Xiaomi/HyperOS, Oppo/Realme, Vivo, Samsung, Honor, Huawei, and more.",
+        "Tap the live traffic strip on the home screen to open usage history, with grouped in/out bars for the last 24 hours, 7 days, 12 months, or 5 years.",
+        "Usage is stored as hourly buckets on the phone and keeps recording while sharing runs in the background, so the graph survives leaving the app. The history stays local and is never uploaded.",
+        "The restricted \"ignore battery optimizations\" permission request is gone; the panel opens the system optimization list instead, so sideloaded builds no longer trigger an unnecessary Play Protect warning."
+      ],
+      "highlights_id": [
+        "Pengaturan kini punya panel Latar belakang & autostart: lihat sekilas apakah optimasi baterai, pembatasan latar belakang, Data Saver, atau notifikasi dapat menghentikan tunnel, lalu langsung menuju layar sistem yang tepat.",
+        "Panel yang sama mendeteksi merek ponsel dan menawarkan pengelola autostart yang cocok, plus langkah singkat untuk Xiaomi/HyperOS, Oppo/Realme, Vivo, Samsung, Honor, Huawei, dan lainnya.",
+        "Ketuk strip pemakaian data langsung di beranda untuk membuka riwayat pemakaian, dengan grafik batang masuk/keluar untuk 24 jam, 7 hari, 12 bulan, atau 5 tahun terakhir.",
+        "Pemakaian disimpan sebagai bucket per jam di ponsel dan tetap tercatat saat berbagi berjalan di latar belakang, jadi grafiknya tidak hilang ketika aplikasi ditinggalkan. Riwayat tetap lokal dan tidak pernah diunggah.",
+        "Permintaan izin \"abaikan optimasi baterai\" yang dibatasi sudah dihapus; panel membuka daftar optimasi sistem, sehingga build sideload tidak lagi memunculkan peringatan Play Protect yang tidak perlu."
+      ]
+    },
+    {
       "version": "1.1.4",
       "date": "2026-11-14",
       "title": "Folder previews that keep up",

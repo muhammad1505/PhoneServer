@@ -2,7 +2,31 @@
 
 Catatan keputusan arsitektur dan keamanan, berurutan dari yang terbaru.
 
-## M12 (saat ini): Pratinjau folder tanpa mengulang kerja (1.1.4)
+## M13 (saat ini): Latar belakang dan riwayat pemakaian (1.1.5)
+
+- **Panel latar belakang membaca status, bukan menebak.** Optimasi baterai, pembatasan latar
+  belakang, Data Saver, dan notifikasi dibaca dari API sistem; nilai yang tidak tersedia di versi
+  Android tersebut bernilai `null` dan barisnya disembunyikan agar tidak memunculkan peringatan palsu.
+- **Tanpa `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`.** Dialog langsung untuk mengabaikan optimasi
+  membutuhkan izin yang dibatasi, dan Play Protect dapat menandainya pada build sideload. Panel
+  membuka daftar optimasi sistem (tanpa izin) dan pengguna memilih aplikasi di sana.
+- **Intent OEM dicoba berurutan, bukan di-resolve lewat `PackageManager`.** Visibilitas paket
+  Android 11 dapat menyembunyikan komponen pabrikan, dan nama komponen berbeda antarversi ROM;
+  UI menjalankan intent satu per satu dan berhenti pada yang pertama terbuka.
+- **Sampling traffic dimiliki singleton `TrafficMonitor`.** Sebelumnya view model beranda yang
+  mengambil sampel, jadi riwayat berhenti saat layar ditinggalkan. Sekarang `ShareRuntime`
+  mengamati status berbagi dan sampler tetap berjalan di latar belakang; meter sesi tetap direset
+  setiap kali mulai berbagi.
+- **Riwayat disimpan sebagai bucket per jam di Room (`traffic_samples`, DB v2).** Flush setiap 30
+  detik menambahkan selisih ke bucket berjalan, sehingga jumlah baris tumbuh lambat dan query
+  grafik tidak memindai sampel 3 detik. Bucket disejajarkan ke awal jam lokal.
+- **Grafik hanya membaca jendela yang dipilih.** `TrafficRange.sinceEpochMs()` menjadi batas query
+  (`DAY` 24 jam, `WEEK` 7 hari, `MONTH` 12 bulan, `YEAR` 5 tahun), dan agregasi memakai
+  `ZoneId.systemDefault()` agar batas hari/bulan/tahun mengikuti jam ponsel.
+- **Grafik batang digambar dengan Compose Canvas.** Tidak ada dependensi chart baru; batang
+  masuk/keluar dikelompokkan per titik dan diskalakan terhadap puncak satu arah.
+
+## M12: Pratinjau folder tanpa mengulang kerja (1.1.4)
 
 - **Pratinjau mencari `entryId`, bukan seluruh isi share.** Setiap request thumbnail, pratinjau,
   dan Range video dulu memanggil `content.list()`; pada folder bertingkat itu berarti berjalan
