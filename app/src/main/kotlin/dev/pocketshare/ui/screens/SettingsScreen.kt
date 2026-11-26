@@ -157,7 +157,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     withContext(Dispatchers.IO) {
                         runCatching {
                             context.contentResolver.openOutputStream(uri)?.use { stream ->
-                                stream.write(payload.toByteArray())
+                                stream.write(payload.toByteArray(Charsets.UTF_8))
                             } ?: error("Unable to open the chosen file")
                         }.isSuccess
                     }
@@ -179,7 +179,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                         runCatching {
                             context.contentResolver
                                 .openInputStream(uri)
-                                ?.bufferedReader()
+                                ?.bufferedReader(Charsets.UTF_8)
                                 ?.use { it.readText() }
                         }.getOrNull()
                     }
@@ -231,7 +231,9 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                                 },
                                 onClick = {
                                     menuOpen = false
-                                    importLauncher.launch(arrayOf("application/json", "text/plain"))
+                                    // Some document providers label a .json file as octet-stream,
+                                    // so accept every file and let the parser validate the content.
+                                    importLauncher.launch(arrayOf("*/*"))
                                 },
                             )
                         }

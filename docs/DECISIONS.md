@@ -2,7 +2,37 @@
 
 Catatan keputusan arsitektur dan keamanan, berurutan dari yang terbaru.
 
-## M13 (saat ini): Latar belakang dan riwayat pemakaian (1.1.5)
+## M14 (saat ini): Pemberitahuan adaptif dan pemulihan koneksi (1.1.6)
+
+- **Satu banner untuk dua peringatan.** Catatan quick tunnel tidak lagi berdiri sendiri. Saat
+  berbagi lewat data seluler dan mode quick tunnel aktif, kedua pesan bergiliran di banner yang
+  sama setiap 6 detik dan tetap memakai marquee, sehingga layar sempit tidak menampilkan dua kartu
+  besar sekaligus. Banner seluler tetap hanya muncul saat sesi benar-benar berjalan.
+- **Ekspor membaca repository, bukan state UI.** `SettingsViewModel.exportSettings()` sekarang
+  `suspend` dan mengambil snapshot langsung dari `SettingsRepository` serta
+  `NamedTunnelRepository`, jadi file tidak bisa tertinggal satu nilai ketika layar baru dibuka.
+- **Hostname ikut, token tidak.** Format portabel naik ke schema 2 dan menyertakan
+  `namedTunnelHostname`; token Cloudflare tetap hanya di perangkat asal. File schema 1 tetap
+  terbaca, field yang tidak dikenal diabaikan, dan file dengan schema lebih baru tetap diimpor
+  bagian yang dipahami.
+- **Impor atomik dan jujur.** `SettingsRepository.apply()` menulis semua preferensi dalam satu
+  transaksi DataStore. Mode `NAMED` tetap diterapkan meskipun token belum ada, lalu UI menjelaskan
+  bahwa token harus dimasukkan di ponsel baru; sebelumnya mode impor diam-diam dibatalkan dan
+  pengaturan tampak tidak lengkap. Pemilih file menerima `*/*` karena sebagian penyedia dokumen
+  memberi label `application/octet-stream` pada file JSON, dan parser menolak isi yang salah.
+- **Handover bukan outage.** `NetworkMonitor` menerbitkan `generation` saat jaringan default atau
+  transportnya berubah. `ShareRuntime` membatalkan probe publik yang sedang berjalan, mengosongkan
+  hasil reachability, lalu memulai probe baru di jalur baru. Probe memakai `Connection: close`
+  supaya soket dari jaringan lama tidak dipakai ulang.
+- **Probe pemulihan lebih rapat.** Interval normal 60 detik (120 detik saat metered), tetapi turun
+  ke 20 detik saat tunnel `Degraded` atau hasil probe `UNREACHABLE`, sehingga status pulih lebih
+  cepat tanpa menambah trafik terus-menerus.
+- **Named tunnel memulai ulang konektornya sendiri.** Jika `/ready` gagal terus selama 120 detik,
+  supervisor menghentikan proses cloudflared dan membiarkan loop reconnect menjalankan ulang dengan
+  DNS/edge yang baru. Hostname tetap sama. Quick tunnel tidak pernah di-restart dengan cara ini
+  karena URL publiknya akan berubah. Waktu offline tidak dihitung sebagai kegagalan.
+
+## M13: Latar belakang dan riwayat pemakaian (1.1.5)
 
 - **Panel latar belakang membaca status, bukan menebak.** Optimasi baterai, pembatasan latar
   belakang, Data Saver, dan notifikasi dibaca dari API sistem; nilai yang tidak tersedia di versi

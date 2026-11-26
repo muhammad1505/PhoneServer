@@ -50,6 +50,8 @@ class PublicReachabilityProbe(
                 connection.instanceFollowRedirects = false
                 connection.useCaches = false
                 connection.setRequestProperty("Cache-Control", "no-cache")
+                // Do not reuse a pooled socket that may still belong to the previous network.
+                connection.setRequestProperty("Connection", "close")
                 connection.setRequestProperty("User-Agent", "PocketShare-health/1.0")
                 PublicProbeResult.Http(connection.responseCode)
             } catch (_: UnknownHostException) {

@@ -47,7 +47,7 @@ Semua data tersimpan di perangkat pengguna dan dapat dihapus kapan saja lewat **
   browser. CSP PocketShare (`script-src 'unsafe-inline'`) memblokir skrip itu sehingga tidak dapat
   dieksekusi atau mengirim data. Web Analytics untuk zona `pocketshare.my.id` sudah dihapus pada
   13 November 2026; beacon tidak lagi disuntikkan.
-- **Bukan end-to-end encryption (E2EE).** PocketShare 1.1.5 tidak memakai E2EE. Pratinjau dokumen,
+- **Bukan end-to-end encryption (E2EE).** PocketShare 1.1.6 tidak memakai E2EE. Pratinjau dokumen,
   thumbnail, Range video, dan ZIP dibuat di sisi server (ponsel), sehingga server harus melihat
   plaintext. Link adalah bearer secret: siapa pun yang memilikinya dapat mengakses file, kecuali
   dilindungi password, masa berlaku, atau batas unduhan.

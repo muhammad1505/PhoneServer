@@ -65,6 +65,10 @@ class CloudflaredTunnelProvider(
     private val readinessProbe: ReadinessProbe = HttpReadinessProbe(),
     private val readinessPollMillis: Long = 5_000L,
     private val degradedAfterMillis: Long = 15_000L,
+    // A named tunnel keeps its hostname, so restarting its connector is safe and is the only way
+    // to pick up fresh DNS/edge addresses after a stuck network handover. Quick tunnels are not
+    // restarted here because their public URL would change.
+    private val unhealthyRestartAfterMillis: Long = 120_000L,
 ) : TunnelProvider {
     private val mutableStatus = MutableStateFlow<TunnelStatus>(TunnelStatus.Stopped())
     override val status: StateFlow<TunnelStatus> = mutableStatus.asStateFlow()
@@ -358,6 +362,11 @@ class CloudflaredTunnelProvider(
         while (currentCoroutineContext().isActive) {
             delay(readinessPollMillis)
             val url = health.publicUrl ?: continue
+            if (networkOnline?.value == false) {
+                // Time spent without a network is not evidence that the connector is stuck.
+                health.unhealthySince = null
+                continue
+            }
             val readiness =
                 when {
                     health.metricsAddress != null -> readinessProbe.check(health.metricsAddress!!)
@@ -384,6 +393,27 @@ class CloudflaredTunnelProvider(
                                 mutableStatus.value = TunnelStatus.Degraded(url, reason)
                                 logger.warn(TAG, "Tunnel is not reachable: $reason")
                             }
+                        }
+                    }
+                    if (health.mode == TunnelMode.NAMED &&
+                        !health.restartRequested &&
+                        now - since >= unhealthyRestartAfterMillis
+                    ) {
+                        val process = processRef.get()
+                        if (process != null) {
+                            health.restartRequested = true
+                            logger.warn(
+                                TAG,
+                                "Named tunnel unreachable for ${now - since}ms; restarting connector",
+                            )
+                            runCatching { process.destroy() }
+                            scope.launch {
+                                delay(STOP_GRACE_MILLIS)
+                                if (processRef.get() === process) {
+                                    runCatching { process.destroyForcibly() }
+                                }
+                            }
+                            return
                         }
                     }
                 }
@@ -424,6 +454,9 @@ class CloudflaredTunnelProvider(
 
         @Volatile
         var unhealthySince: Long? = null
+
+        @Volatile
+        var restartRequested: Boolean = false
 
         val connections: MutableSet<Int> = ConcurrentHashMap.newKeySet()
     }

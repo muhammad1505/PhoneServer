@@ -210,6 +210,15 @@ dulu, memasang `CoroutineExceptionHandler` pada engine CIO, dan meneruskan kegag
   koneksi edge aktif, jadi status turun ke `Degraded` tanpa mematikan proses/URL. HTTP 200
   mengembalikan status ke `Running`. Satu `Lost connection with the edge` dari empat koneksi HA
   tidak langsung dianggap outage; `connIndex` dilacak sebagai fallback bila port metrics tidak ada.
+- **Pemulihan named tunnel (1.1.6).** Jika status tetap `Degraded` selama 120 detik, supervisor
+  menghentikan proses cloudflared sekali; loop reconnect lalu menjalankan proses baru dengan
+  resolver dan edge yang di-resolve ulang. Hostname tidak berubah karena berasal dari konfigurasi
+  ingress, bukan dari proses. Quick tunnel tidak memakai jalur ini agar URL publiknya stabil.
+  Selama `NetworkMonitor` melaporkan offline, waktu tidak dihitung dan `unhealthySince` direset,
+  jadi handover yang lama tidak memicu restart palsu.
+- **Handover jaringan (1.1.6).** Probe `/healthz` publik dibatalkan saat jaringan default berubah
+  dan dimulai ulang di jaringan baru dengan `Connection: close`. Interval probe turun ke 20 detik
+  selama `Degraded`/`UNREACHABLE`, lalu kembali normal setelah pulih.
 - Log cloudflared diparsing; URL quick tunnel, koneksi terdaftar/terputus, alamat metrics, dan fragmen
   error/fatal diterjemahkan ke status UI. Semua baris disamarkan lewat `Redactor`.
 

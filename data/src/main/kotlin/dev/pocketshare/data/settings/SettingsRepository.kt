@@ -86,6 +86,22 @@ class SettingsRepository @Inject constructor(
         dataStore.edit { it[KEYS.allowLanAccess] = enabled }
     }
 
+    /**
+     * Writes a complete settings snapshot in one transaction so an import cannot leave the phone
+     * with a mix of old and new values when one write fails.
+     */
+    suspend fun apply(settings: AppSettings) {
+        dataStore.edit { preferences ->
+            preferences[KEYS.tunnelMode] = settings.tunnelMode.name
+            preferences[KEYS.port] = settings.port.coerceIn(0, 65_535)
+            preferences[KEYS.wifiOnly] = settings.wifiOnly
+            preferences[KEYS.autoStopMinutes] = settings.autoStopMinutes.coerceIn(0, 24 * 60)
+            preferences[KEYS.defaultExpiry] = settings.defaultExpiry.name
+            preferences[KEYS.language] = settings.language.name
+            preferences[KEYS.allowLanAccess] = settings.allowLanAccess
+        }
+    }
+
     suspend fun changelogSeenVersion(): String? = dataStore.data.first()[KEYS.changelogSeenVersion]
 
     suspend fun setChangelogSeenVersion(version: String) {

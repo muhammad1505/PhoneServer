@@ -1,6 +1,26 @@
 {
   "releases": [
     {
+      "version": "1.1.6",
+      "date": "2026-11-26",
+      "title": "Flexible notices and sturdier connections",
+      "title_id": "Pemberitahuan fleksibel dan koneksi lebih tangguh",
+      "highlights": [
+        "The mobile-data and quick-tunnel notices now share one compact banner. When both apply, the messages take turns and scroll, so neither is hidden on a narrow screen.",
+        "Settings export now includes the named-tunnel hostname. Import applies the full snapshot in one step, accepts files that document providers label as generic binaries, and tells you when the tunnel token still has to be entered on the new phone.",
+        "A named tunnel that stays unreachable for two minutes now restarts its connector automatically and keeps the same public address.",
+        "Network handovers no longer count as tunnel failures: the public health check starts over on the new connection, and recovery checks run more often while the link is unstable.",
+        "Quick tunnels still keep their current address and are never restarted just because the edge is temporarily unreachable."
+      ],
+      "highlights_id": [
+        "Pemberitahuan data seluler dan quick tunnel kini memakai satu banner ringkas. Saat keduanya berlaku, pesannya bergantian dan berjalan, jadi tidak ada yang terpotong di layar sempit.",
+        "Ekspor pengaturan kini menyertakan hostname named tunnel. Impor menerapkan seluruh snapshot dalam satu langkah, menerima file yang oleh penyedia dokumen diberi label biner generik, dan memberi tahu bila token tunnel masih harus dimasukkan di ponsel baru.",
+        "Named tunnel yang tidak terjangkau selama dua menit kini memulai ulang konektornya otomatis dengan alamat publik yang tetap sama.",
+        "Perpindahan jaringan tidak lagi dianggap kegagalan tunnel: pemeriksaan kesehatan publik dimulai ulang di koneksi baru, dan pemeriksaan pemulihan berjalan lebih sering saat tautan tidak stabil.",
+        "Quick tunnel tetap mempertahankan alamatnya dan tidak dimulai ulang hanya karena edge sementara tidak terjangkau."
+      ]
+    },
+    {
       "version": "1.1.5",
       "date": "2026-11-17",
       "title": "A tunnel that stays awake",

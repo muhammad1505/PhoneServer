@@ -56,6 +56,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -103,6 +104,7 @@ import dev.pocketshare.ui.copyLink
 import dev.pocketshare.ui.shareLink
 import dev.pocketshare.ui.theme.LocalBrandColors
 import dev.pocketshare.ui.viewmodel.HomeViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(
@@ -154,8 +156,14 @@ fun HomeScreen(
             BrandHeader(subtitle = stringResource(R.string.app_tagline))
         }
 
-        if (state.isSharing && network.online && !network.isWifi) {
-            item { MobileDataBanner() }
+        val mobileDataActive = network.online && !network.isWifi && state.isSharing
+        if (mobileDataActive || settings.tunnelMode == TunnelMode.QUICK) {
+            item {
+                ConnectionNoticeBanner(
+                    mobileData = mobileDataActive,
+                    quickTunnel = settings.tunnelMode == TunnelMode.QUICK,
+                )
+            }
         }
 
         item {
@@ -209,10 +217,6 @@ fun HomeScreen(
                     contentColor = brand.onWarningContainer,
                 )
             }
-        }
-
-        if (settings.tunnelMode == TunnelMode.QUICK) {
-            item { InfoCard(text = R.string.home_quick_note, icon = Icons.Outlined.Bolt) }
         }
 
         item {
@@ -565,11 +569,42 @@ private fun HeroCard(
 }
 
 @Composable
-private fun MobileDataBanner() {
+private fun ConnectionNoticeBanner(
+    mobileData: Boolean,
+    quickTunnel: Boolean,
+) {
+    val messages =
+        remember(mobileData, quickTunnel) {
+            buildList {
+                if (mobileData) add(R.string.home_mobile_banner)
+                if (quickTunnel) add(R.string.home_quick_note)
+            }
+        }
+    if (messages.isEmpty()) return
+
     val brand = LocalBrandColors.current
+    var messageIndex by remember(messages) { mutableStateOf(0) }
+    LaunchedEffect(messages) {
+        messageIndex = 0
+        if (messages.size < 2) return@LaunchedEffect
+        while (true) {
+            delay(NOTICE_ROTATE_MILLIS)
+            messageIndex = (messageIndex + 1) % messages.size
+        }
+    }
+    val message = messages[messageIndex.coerceIn(messages.indices)]
+    val container = if (mobileData) brand.warningContainer else MaterialTheme.colorScheme.surfaceContainerHigh
+    val content = if (mobileData) brand.onWarningContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    val accent = if (mobileData) brand.warning else MaterialTheme.colorScheme.primary
+    val icon =
+        if (message == R.string.home_mobile_banner) {
+            Icons.Outlined.SignalCellularAlt
+        } else {
+            Icons.Outlined.Bolt
+        }
     val bannerBrush =
         Brush.horizontalGradient(
-            listOf(brand.warningContainer, brand.warningContainer.copy(alpha = 0.62f)),
+            listOf(container, container.copy(alpha = 0.62f)),
         )
     Row(
         modifier =
@@ -577,7 +612,7 @@ private fun MobileDataBanner() {
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
                 .background(bannerBrush)
-                .border(1.dp, brand.warning.copy(alpha = 0.30f), RoundedCornerShape(14.dp))
+                .border(1.dp, accent.copy(alpha = 0.30f), RoundedCornerShape(14.dp))
                 .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -587,20 +622,20 @@ private fun MobileDataBanner() {
                 Modifier
                     .size(22.dp)
                     .clip(CircleShape)
-                    .background(brand.warning.copy(alpha = 0.16f)),
+                    .background(accent.copy(alpha = 0.16f)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Outlined.SignalCellularAlt,
+                imageVector = icon,
                 contentDescription = null,
-                tint = brand.warning,
+                tint = accent,
                 modifier = Modifier.size(14.dp),
             )
         }
         Text(
-            text = stringResource(R.string.home_mobile_banner),
+            text = stringResource(message),
             style = MaterialTheme.typography.labelMedium,
-            color = brand.onWarningContainer,
+            color = content,
             maxLines = 1,
             modifier =
                 Modifier
@@ -982,3 +1017,5 @@ private fun ActiveShareRow(
         }
     }
 }
+
+private const val NOTICE_ROTATE_MILLIS = 6_000L

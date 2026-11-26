@@ -130,6 +130,18 @@ class ShareRuntime @Inject constructor(
             tunnel.status.collect(::onTunnelStatus)
         }
         scope.launch {
+            // A handover makes any in-flight public probe meaningless. Drop its result and check
+            // the new path immediately instead of waiting for the next interval or marking the
+            // tunnel unreachable because the old network disappeared mid-request.
+            networkMonitor.generation.collect {
+                val current = mutableState.value
+                if (!current.isSharing) return@collect
+                setReachability(Reachability.UNKNOWN)
+                stopProbe()
+                if (networkMonitor.status.value.online) restartProbe()
+            }
+        }
+        scope.launch {
             combine(networkMonitor.status, settingsRepository.settings) { network, settings ->
                 network to settings
             }.collect { (network, settings) ->
@@ -441,7 +453,10 @@ class ShareRuntime @Inject constructor(
     private fun restartProbe() {
         val state = mutableState.value
         val target = state.publicUrl
-        if (state.phase != SharingPhase.RUNNING || target == null) {
+        if (state.phase != SharingPhase.RUNNING ||
+            target == null ||
+            !networkMonitor.status.value.online
+        ) {
             stopProbe()
             return
         }
@@ -472,9 +487,19 @@ class ShareRuntime @Inject constructor(
                     if (failures >= PROBE_FAILURES_BEFORE_UNREACHABLE) {
                         setReachability(Reachability.UNREACHABLE)
                     }
-                    delay(if (networkMonitor.status.value.metered) METERED_PROBE_INTERVAL_MILLIS else PROBE_INTERVAL_MILLIS)
+                    delay(probeInterval())
                 }
             }
+    }
+
+    private fun probeInterval(): Long {
+        val current = mutableState.value
+        return when {
+            current.reachability == Reachability.UNREACHABLE ||
+                current.tunnelStatus is TunnelStatus.Degraded -> RECOVERY_PROBE_INTERVAL_MILLIS
+            networkMonitor.status.value.metered -> METERED_PROBE_INTERVAL_MILLIS
+            else -> PROBE_INTERVAL_MILLIS
+        }
     }
 
     private fun stopProbe() {
@@ -519,8 +544,9 @@ class ShareRuntime @Inject constructor(
     private companion object {
         const val TAG = "Runtime"
         const val WIFI_ONLY_GRACE_MILLIS = 5_000L
-        const val PROBE_INTERVAL_MILLIS = 45_000L
+        const val PROBE_INTERVAL_MILLIS = 60_000L
         const val METERED_PROBE_INTERVAL_MILLIS = 120_000L
+        const val RECOVERY_PROBE_INTERVAL_MILLIS = 20_000L
         const val PROBE_FAILURES_BEFORE_UNREACHABLE = 2
     }
 }

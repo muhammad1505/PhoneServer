@@ -2,6 +2,7 @@ package dev.pocketshare.runtime
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,12 +26,23 @@ class NetworkMonitor @Inject constructor(
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
 
-    private val mutableStatus = MutableStateFlow(readStatus())
+    private val initialNetwork = runCatching { connectivityManager?.activeNetwork }.getOrNull()
+    private val mutableStatus = MutableStateFlow(readStatus(initialNetwork))
     val status: StateFlow<NetworkStatus> = mutableStatus.asStateFlow()
 
     /** Convenience signal for the tunnel supervisor, which only cares about reachability. */
     private val mutableOnline = MutableStateFlow(mutableStatus.value.online)
     val online: StateFlow<Boolean> = mutableOnline.asStateFlow()
+
+    /**
+     * Increments whenever the default network or its meaningful capabilities change. Consumers
+     * use it to drop stale probe results instead of treating a Wi-Fi/cellular handover as an
+     * outage.
+     */
+    private val mutableGeneration = MutableStateFlow(0L)
+    val generation: StateFlow<Long> = mutableGeneration.asStateFlow()
+
+    private var lastNetwork: Network? = initialNetwork
 
     private val callback =
         object : ConnectivityManager.NetworkCallback() {
@@ -52,6 +64,13 @@ class NetworkMonitor @Inject constructor(
             ) {
                 refresh()
             }
+
+            override fun onLinkPropertiesChanged(
+                network: Network,
+                linkProperties: LinkProperties,
+            ) {
+                refresh()
+            }
         }
 
     init {
@@ -59,16 +78,25 @@ class NetworkMonitor @Inject constructor(
     }
 
     fun refresh() {
-        val next = readStatus()
+        val manager = connectivityManager
+        val network = runCatching { manager?.activeNetwork }.getOrNull()
+        val next = readStatus(network)
+        val previous = mutableStatus.value
         mutableStatus.value = next
         mutableOnline.value = next.online
+        if (network != lastNetwork ||
+            previous.online != next.online ||
+            previous.isWifi != next.isWifi ||
+            previous.isCellular != next.isCellular
+        ) {
+            lastNetwork = network
+            mutableGeneration.value += 1
+        }
     }
 
-    private fun readStatus(): NetworkStatus {
+    private fun readStatus(network: Network?): NetworkStatus {
         val manager = connectivityManager ?: return NetworkStatus(false, false, false, false)
-        val network =
-            runCatching { manager.activeNetwork }.getOrNull()
-                ?: return NetworkStatus(false, false, false, false)
+        if (network == null) return NetworkStatus(false, false, false, false)
         val capabilities =
             runCatching { manager.getNetworkCapabilities(network) }.getOrNull()
                 ?: return NetworkStatus(false, false, false, false)

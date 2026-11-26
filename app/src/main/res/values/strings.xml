@@ -297,7 +297,8 @@
     <string name="settings_export_failed">Could not export settings</string>
     <string name="settings_export_failed_body">Choose a writable location and try again.</string>
     <string name="settings_imported">Settings imported</string>
-    <string name="settings_imported_body">Tunnel mode, port, language, and defaults are applied. Tunnel tokens stay on this phone.</string>
+    <string name="settings_imported_body">Tunnel mode, port, hostname, language, and defaults are applied. Tunnel tokens stay on this phone.</string>
+    <string name="settings_imported_named_body">Named tunnel mode and hostname were imported. Enter the tunnel token on this phone before starting.</string>
     <string name="settings_import_failed">Could not import settings</string>
     <string name="settings_import_failed_body">The file is not a Pocket Share settings export.</string>
     <string name="settings_restart_required">Changes apply the next time you start sharing.</string>

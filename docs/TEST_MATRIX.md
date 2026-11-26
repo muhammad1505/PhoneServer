@@ -50,6 +50,11 @@ Perangkat agresif: Xiaomi HyperOS, Oppo ColorOS, Samsung OneUI.
 | T29| DNS Android tanpa hotspot/dnsmasq              | Seluler, hotspot mati     | API quick tunnel, SRV, dan features memakai `TUNNEL_DNS_SERVERS`; edge memakai `TUNNEL_EDGE`; link tetap 200 |
 | T30| Alamat edge pinned diblokir saat tunnel mulai  | VPN/firewall blokir 7844  | Percobaan pinned berhenti ≤60 detik; percobaan berikutnya tanpa `TUNNEL_EDGE` (log "Using cloudflared edge discovery") dan link pulih tanpa restart aplikasi |
 | T31| Pindah Wi-Fi ↔ seluler ↔ VPN saat tunnel mati | Jaringan berubah          | `TUNNEL_DNS_SERVERS` pada launch berikutnya memakai resolver jaringan baru, bukan resolver lama |
+| T32| Ekspor di HP A → impor di HP B                | Dua perangkat             | Mode, port, hostname named tunnel, bahasa, default lengkap; HP B meminta token |
+| T33| Impor file JSON ber-BOM / label octet-stream  | Settings                  | Impor berhasil atau pesan gagal jelas; tidak ada nilai setengah tertulis |
+| T34| Quick tunnel + data seluler aktif             | Seluler                   | Satu banner bergantian; kedua pesan terbaca; marquee berjalan |
+| T35| Wi-Fi ↔ seluler saat named tunnel berjalan    | Handover                  | URL tetap; status tidak merah; probe pulih < 1 menit |
+| T36| Named tunnel `/ready` gagal > 2 menit         | Wi-Fi stabil              | Connector restart otomatis; hostname sama; sesi tetap hidup |
 
 ## Hasil uji
 

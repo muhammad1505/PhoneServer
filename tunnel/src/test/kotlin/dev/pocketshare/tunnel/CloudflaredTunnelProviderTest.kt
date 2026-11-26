@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -267,6 +268,111 @@ class CloudflaredTunnelProviderTest {
                     provider.status.first { it is TunnelStatus.Running }
                 } as TunnelStatus.Running
             assertEquals("https://degraded-test.trycloudflare.com", running.publicUrl)
+            provider.stop()
+        }
+
+    @Test
+    fun `named tunnel restarts its connector after sustained unreachability`() =
+        runBlocking {
+            val first =
+                FakeProcess(
+                    lines =
+                        listOf(
+                            "INF Starting metrics server on 127.0.0.1:20241/metrics",
+                            "INF Registered tunnel connection connIndex=0",
+                        ),
+                )
+            val second =
+                FakeProcess(
+                    lines =
+                        listOf(
+                            "INF Starting metrics server on 127.0.0.1:20242/metrics",
+                            "INF Registered tunnel connection connIndex=0",
+                        ),
+                )
+            val launcher = FakeLauncher(listOf(first, second))
+            var secondReady = false
+            val provider =
+                CloudflaredTunnelProvider(
+                    scope = scope,
+                    binaryPath = binary(),
+                    launcher = launcher,
+                    backoff = BackoffPolicy { 0 },
+                    logger = logger,
+                    readinessProbe =
+                        object : ReadinessProbe {
+                            override suspend fun check(address: String): Readiness =
+                                when (address) {
+                                    "127.0.0.1:20242" -> {
+                                        secondReady = true
+                                        Readiness.READY
+                                    }
+
+                                    else -> Readiness.NOT_READY
+                                }
+                        },
+                    readinessPollMillis = 20,
+                    degradedAfterMillis = 0,
+                    unhealthyRestartAfterMillis = 50,
+                )
+
+            provider.start(
+                TunnelRequest(
+                    mode = TunnelMode.NAMED,
+                    localPort = 8_080,
+                    namedToken = "token",
+                    hostname = "files.example.com",
+                ),
+            )
+            withTimeout(5_000) {
+                while (!first.destroyed) delay(10)
+                while (!secondReady) delay(10)
+            }
+
+            assertTrue(launcher.specs.size >= 2)
+            assertEquals("https://files.example.com", (provider.status.value as TunnelStatus.Running).publicUrl)
+            provider.stop()
+        }
+
+    @Test
+    fun `quick tunnel keeps its url instead of restarting on unreachability`() =
+        runBlocking {
+            val process =
+                FakeProcess(
+                    lines =
+                        listOf(
+                            "INF Starting metrics server on 127.0.0.1:20251/metrics",
+                            "INF | https://steady-test.trycloudflare.com |",
+                        ),
+                )
+            val launcher = FakeLauncher(listOf(process))
+            val provider =
+                CloudflaredTunnelProvider(
+                    scope = scope,
+                    binaryPath = binary(),
+                    launcher = launcher,
+                    backoff = BackoffPolicy { 0 },
+                    logger = logger,
+                    readinessProbe =
+                        object : ReadinessProbe {
+                            override suspend fun check(address: String): Readiness = Readiness.NOT_READY
+                        },
+                    readinessPollMillis = 20,
+                    degradedAfterMillis = 0,
+                    unhealthyRestartAfterMillis = 50,
+                )
+
+            provider.start(TunnelRequest(TunnelMode.QUICK, localPort = 45_612))
+            withTimeout(5_000) {
+                provider.status.first { it is TunnelStatus.Degraded }
+            }
+            delay(150)
+
+            assertEquals(1, launcher.specs.size)
+            assertEquals(
+                "https://steady-test.trycloudflare.com",
+                (provider.status.value as TunnelStatus.Degraded).publicUrl,
+            )
             provider.stop()
         }
 

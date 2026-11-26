@@ -14,7 +14,7 @@ Bagikan file langsung dari ponsel Anda — tanpa VPS, tanpa akun, tanpa analytic
 2. Buka **Pengaturan** → pilih **Mode tunnel**: **Quick tunnel** (alamat berubah tiap kali dimulai) atau **Named tunnel** (alamat tetap, butuh token Cloudflare Zero Trust).
 3. Tekan **Mulai berbagi**. PocketShare memulai server lokal, membuka tunnel ke Cloudflare, lalu menampilkan tautan publik.
 4. Bagikan tautan siapa saja. Mereka bisa membuka/mengunduh file di browser tanpa aplikasi apa pun. Gambar, video, audio, PDF, teks, serta dokumen Word/Excel/PowerPoint/OpenDocument/RTF bisa dipratinjau langsung di halaman publik; nama file panjang otomatis berjalan agar tetap terbaca. Centang file tertentu untuk mengunduh ZIP parsial, atau unduh semuanya sekaligus. Folder yang dibagikan tetap tampil sebagai folder bertingkat: buka satu folder untuk melihat isinya, tanpa daftar file yang tercampur.
-5. Butuh pindah ponsel? Buka **Pengaturan → menu titik tiga → Ekspor/Impor pengaturan**. File JSON berisi mode tunnel, port, bahasa, dan default; token tunnel tetap tinggal di ponsel.
+5. Butuh pindah ponsel? Buka **Pengaturan → menu titik tiga → Ekspor/Impor pengaturan**. File JSON berisi mode tunnel, port, hostname named tunnel, bahasa, dan default; token tunnel tetap tinggal di ponsel dan perlu dimasukkan lagi di perangkat baru.
 6. Untuk sesi panjang, buka **Pengaturan → Latar belakang & autostart**. Panel ini menunjukkan status optimasi baterai, pembatasan latar belakang, Data Saver, dan notifikasi, lalu menyediakan tombol ke pengaturan sistem serta panduan autostart sesuai merek ponsel (Xiaomi, Oppo/Realme, Vivo, Samsung, dan lainnya). Ketuk strip pemakaian data di beranda untuk membuka grafik pemakaian harian, mingguan, bulanan, dan tahunan; riwayat tetap tercatat saat berbagi berjalan di latar belakang.
 
 ## Persiapan named tunnel (opsional)
@@ -72,7 +72,7 @@ export POCKETSHARE_KEY_PASSWORD=...
 ./gradlew assembleRelease
 ```
 
-`versionCode` dan `versionName` otomatis dari variabel `POCKETSHARE_VERSION_CODE` dan `POCKETSHARE_VERSION_NAME`; tanpa keduanya digunakan `10105` dan `1.1.5`.
+`versionCode` dan `versionName` otomatis dari variabel `POCKETSHARE_VERSION_CODE` dan `POCKETSHARE_VERSION_NAME`; tanpa keduanya digunakan `10106` dan `1.1.6`.
 
 ## Keamanan
 
@@ -89,7 +89,7 @@ export POCKETSHARE_KEY_PASSWORD=...
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — catatan keputusan arsitektur.
 - [`docs/TEST_MATRIX.md`](docs/TEST_MATRIX.md) — matriks uji manual.
 - [`SECURITY.md`](SECURITY.md) — pelaporan kerentanan.
-- [`PRIVACY.md`](PRIVACY.md) — privasi, tidak ada data dikumpulkan, dan model ancaman (TLS berakhir di Cloudflare, tanpa E2EE di 1.1.5).
+- [`PRIVACY.md`](PRIVACY.md) — privasi, tidak ada data dikumpulkan, dan model ancaman (TLS berakhir di Cloudflare, tanpa E2EE di 1.1.6).
 - [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) — notis lisensi pihak ketiga.
 
 ## Lisensi
