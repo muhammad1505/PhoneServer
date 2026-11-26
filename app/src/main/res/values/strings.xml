@@ -293,11 +293,11 @@
     <string name="settings_export">Export settings</string>
     <string name="settings_import">Import settings</string>
     <string name="settings_exported">Settings exported</string>
-    <string name="settings_exported_body">Stored as a JSON file you can keep or move to another phone.</string>
+    <string name="settings_exported_body">Stored as a JSON file you can move to another phone. It includes the tunnel token in plain text, so keep the file private.</string>
     <string name="settings_export_failed">Could not export settings</string>
     <string name="settings_export_failed_body">Choose a writable location and try again.</string>
     <string name="settings_imported">Settings imported</string>
-    <string name="settings_imported_body">Tunnel mode, port, hostname, language, and defaults are applied. Tunnel tokens stay on this phone.</string>
+    <string name="settings_imported_body">Tunnel mode, port, hostname, token, language, and defaults are applied.</string>
     <string name="settings_imported_named_body">Named tunnel mode and hostname were imported. Enter the tunnel token on this phone before starting.</string>
     <string name="settings_import_failed">Could not import settings</string>
     <string name="settings_import_failed_body">The file is not a Pocket Share settings export.</string>

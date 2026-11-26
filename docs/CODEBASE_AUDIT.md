@@ -135,7 +135,8 @@ Pipeline di modul `server`:
 - DataStore: `tunnel_mode`, `port`, `wifi_only`, `auto_stop_minutes`, `default_expiry`, `language`,
   `allow_lan_access`, `changelog_seen_version`.
 - `NameTunnelRepository`/`AndroidKeystoreSecretCipher` menyimpan token tunnel terenkripsi; jangan
-  pernah menulis secret ke log atau ekspor JSON.
+  pernah menulis secret ke log. Token hanya boleh keluar lewat ekspor pengaturan yang disengaja
+  (schema 3, teks biasa) dan file hasilnya harus dijaga seperti secret.
 - `FileAppLogger` + `Redactor` menyamarkan token/password/cookie sebelum log ditulis.
 
 ## 6. Peta pengujian
@@ -177,7 +178,8 @@ Suite QA yang biasanya dipakai:
 - **Route baru**: daftarkan di `PocketShareModule`, ikuti urutan rate limit → resolve token →
   otorisasi → validasi input → slot unduhan.
 - **Setting baru**: tambahkan key DataStore di `SettingsRepository`, field `AppSettings`, UI di
-  `SettingsScreen`, dan (bila portable) field di ekspor/impor JSON; jangan sertakan secret.
+  `SettingsScreen`, dan (bila portable) field di ekspor/impor JSON. Secret hanya boleh ikut bila
+  memang perlu berpindah perangkat, dan pesan ekspor wajib memperingatkan file berisi teks biasa.
 - **Perubahan halaman publik**: jaga tautan non-JS tetap berfungsi, escape semua nama file, dan
   perbarui CSP bila menambah sumber daya.
 - **Perubahan gambar**: batas ukuran/kuota ada di `PocketShareModule`; transformer hanya boleh

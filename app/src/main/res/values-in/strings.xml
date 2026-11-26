@@ -291,11 +291,11 @@
     <string name="settings_export">Ekspor pengaturan</string>
     <string name="settings_import">Impor pengaturan</string>
     <string name="settings_exported">Pengaturan diekspor</string>
-    <string name="settings_exported_body">Disimpan sebagai file JSON yang bisa kamu simpan atau pindahkan ke ponsel lain.</string>
+    <string name="settings_exported_body">Disimpan sebagai file JSON yang bisa dipindahkan ke ponsel lain. File ini memuat token tunnel dalam teks biasa, jadi jaga kerahasiaannya.</string>
     <string name="settings_export_failed">Gagal mengekspor pengaturan</string>
     <string name="settings_export_failed_body">Pilih lokasi yang bisa ditulis lalu coba lagi.</string>
     <string name="settings_imported">Pengaturan diimpor</string>
-    <string name="settings_imported_body">Mode tunnel, port, hostname, bahasa, dan default sudah diterapkan. Token tunnel tetap di ponsel ini.</string>
+    <string name="settings_imported_body">Mode tunnel, port, hostname, token, bahasa, dan default sudah diterapkan.</string>
     <string name="settings_imported_named_body">Mode named tunnel dan hostname sudah diimpor. Masukkan token tunnel di ponsel ini sebelum memulai.</string>
     <string name="settings_import_failed">Gagal mengimpor pengaturan</string>
     <string name="settings_import_failed_body">File ini bukan ekspor pengaturan Pocket Share.</string>

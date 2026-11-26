@@ -9,7 +9,7 @@ import org.junit.Test
 
 class PortableSettingsTest {
     @Test
-    fun `round trip keeps every portable field and the hostname`() {
+    fun `round trip keeps every portable field, the hostname, and the token`() {
         val settings =
             AppSettings(
                 tunnelMode = TunnelMode.NAMED,
@@ -21,11 +21,17 @@ class PortableSettingsTest {
                 allowLanAccess = true,
             )
 
-        val encoded = PortableSettingsCodec.encode(settings, " files.example.com ")
+        val encoded =
+            PortableSettingsCodec.encode(
+                settings,
+                " files.example.com ",
+                " eyJhIjoiYWNjb3VudCIsInQiOiJ0b2tlbiJ9 ",
+            )
         val decoded = PortableSettingsCodec.decode(encoded)
 
         assertEquals(settings, decoded?.merge(AppSettings()))
         assertEquals("files.example.com", decoded?.namedTunnelHostname)
+        assertEquals("eyJhIjoiYWNjb3VudCIsInQiOiJ0b2tlbiJ9", decoded?.namedTunnelToken)
     }
 
     @Test
@@ -51,6 +57,27 @@ class PortableSettingsTest {
         assertEquals(45_678, decoded?.port)
         assertEquals(AppLanguage.ENGLISH, decoded?.language)
         assertNull(decoded?.namedTunnelHostname)
+        assertNull(decoded?.namedTunnelToken)
+    }
+
+    @Test
+    fun `schema 2 file with a hostname but no token still imports`() {
+        val raw =
+            """
+            {
+              "app": "pocketshare",
+              "schema": 2,
+              "tunnelMode": "NAMED",
+              "port": 8080,
+              "namedTunnelHostname": "files.example.com"
+            }
+            """.trimIndent()
+
+        val decoded = PortableSettingsCodec.decode(raw)
+
+        assertEquals(TunnelMode.NAMED, decoded?.tunnelMode)
+        assertEquals("files.example.com", decoded?.namedTunnelHostname)
+        assertNull(decoded?.namedTunnelToken)
     }
 
     @Test
@@ -63,6 +90,7 @@ class PortableSettingsTest {
               "tunnelMode": "NAMED",
               "port": 8080,
               "namedTunnelHostname": "files.example.com",
+              "namedTunnelToken": "token-from-a-newer-build",
               "futureSetting": true
             }
             """.trimIndent()
@@ -71,6 +99,7 @@ class PortableSettingsTest {
 
         assertEquals(TunnelMode.NAMED, decoded?.tunnelMode)
         assertEquals("files.example.com", decoded?.namedTunnelHostname)
+        assertEquals("token-from-a-newer-build", decoded?.namedTunnelToken)
     }
 
     @Test

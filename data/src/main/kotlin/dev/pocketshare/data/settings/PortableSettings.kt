@@ -13,8 +13,9 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 
 /**
- * Portable subset of the app settings. Secrets (the named-tunnel token) are deliberately absent;
- * the hostname is not secret and is needed to restore a named tunnel on another phone.
+ * Portable subset of the app settings, including the named-tunnel hostname and token so a new
+ * phone can start the same tunnel without asking for the token again. The token is written to the
+ * export file in plain text, so that file must be treated as a secret.
  */
 data class PortableSettings(
     val tunnelMode: TunnelMode? = null,
@@ -25,6 +26,7 @@ data class PortableSettings(
     val language: AppLanguage? = null,
     val allowLanAccess: Boolean? = null,
     val namedTunnelHostname: String? = null,
+    val namedTunnelToken: String? = null,
 ) {
     fun merge(current: AppSettings): AppSettings =
         AppSettings(
@@ -44,7 +46,7 @@ data class PortableSettings(
  */
 object PortableSettingsCodec {
     const val APP = "pocketshare"
-    const val SCHEMA = 2
+    const val SCHEMA = 3
 
     private val json =
         Json {
@@ -57,6 +59,7 @@ object PortableSettingsCodec {
     fun encode(
         settings: AppSettings,
         namedTunnelHostname: String?,
+        namedTunnelToken: String? = null,
     ): String =
         buildJsonObject {
             put("app", APP)
@@ -72,6 +75,10 @@ object PortableSettingsCodec {
                 ?.trim()
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { put("namedTunnelHostname", it) }
+            namedTunnelToken
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { put("namedTunnelToken", it) }
         }.toString()
 
     fun decode(raw: String): PortableSettings? {
@@ -95,6 +102,7 @@ object PortableSettingsCodec {
             language = root.string("language")?.let { enumValue<AppLanguage>(it) },
             allowLanAccess = root.boolean("allowLanAccess"),
             namedTunnelHostname = root.string("namedTunnelHostname")?.trim()?.takeIf { it.isNotEmpty() },
+            namedTunnelToken = root.string("namedTunnelToken")?.trim()?.takeIf { it.isNotEmpty() },
         )
     }
 

@@ -119,12 +119,18 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setLanguage(language) }
     }
 
-    /** Portable settings snapshot; deliberately excludes tunnel secrets. */
+    /** Portable settings snapshot, including the named-tunnel token so a new phone starts ready. */
     suspend fun exportSettings(): String {
         // Read the repository directly instead of relying on a possibly-not-yet-collected state.
         val current = settingsRepository.settings.first()
         val named = namedTunnelRepository.settings.first()
-        return PortableSettingsCodec.encode(current, named.hostname)
+        val token =
+            if (named.hasToken) {
+                runCatching { namedTunnelRepository.loadToken() }.getOrNull()
+            } else {
+                null
+            }
+        return PortableSettingsCodec.encode(current, named.hostname, token)
     }
 
     fun importSettings(raw: String) {
@@ -153,8 +159,9 @@ class SettingsViewModel @Inject constructor(
 
             try {
                 val current = settings.first()
-                // The hostname is portable; the token is not. Keep any token already stored here.
-                hostname?.let { namedTunnelRepository.save(it, token = null) }
+                // The token from the file is re-encrypted with this phone's Keystore. A file
+                // without a token keeps any token already stored here.
+                hostname?.let { namedTunnelRepository.save(it, token = imported.namedTunnelToken) }
                 val merged = imported.merge(current)
                 settingsRepository.apply(merged)
 

@@ -11,15 +11,19 @@ Catatan keputusan arsitektur dan keamanan, berurutan dari yang terbaru.
 - **Ekspor membaca repository, bukan state UI.** `SettingsViewModel.exportSettings()` sekarang
   `suspend` dan mengambil snapshot langsung dari `SettingsRepository` serta
   `NamedTunnelRepository`, jadi file tidak bisa tertinggal satu nilai ketika layar baru dibuka.
-- **Hostname ikut, token tidak.** Format portabel naik ke schema 2 dan menyertakan
-  `namedTunnelHostname`; token Cloudflare tetap hanya di perangkat asal. File schema 1 tetap
-  terbaca, field yang tidak dikenal diabaikan, dan file dengan schema lebih baru tetap diimpor
-  bagian yang dipahami.
+- **Hostname dan token ikut.** Format portabel naik ke schema 3 dan menyertakan
+  `namedTunnelHostname` serta `namedTunnelToken`, jadi pindah perangkat cukup dengan impor. Token
+  didekripsi dari Keystore saat ekspor, ditulis sebagai teks biasa di file JSON, lalu dienkripsi
+  ulang dengan Keystore ponsel tujuan saat impor. File ekspor kini harus diperlakukan sebagai
+  rahasia, dan pesan ekspor memperingatkannya. File schema 1/2 tetap terbaca tanpa token, field
+  yang tidak dikenal diabaikan, dan file dengan schema lebih baru tetap diimpor bagian yang
+  dipahami.
 - **Impor atomik dan jujur.** `SettingsRepository.apply()` menulis semua preferensi dalam satu
-  transaksi DataStore. Mode `NAMED` tetap diterapkan meskipun token belum ada, lalu UI menjelaskan
-  bahwa token harus dimasukkan di ponsel baru; sebelumnya mode impor diam-diam dibatalkan dan
-  pengaturan tampak tidak lengkap. Pemilih file menerima `*/*` karena sebagian penyedia dokumen
-  memberi label `application/octet-stream` pada file JSON, dan parser menolak isi yang salah.
+  transaksi DataStore. Mode `NAMED` tetap diterapkan meskipun file tidak membawa token dan ponsel
+  ini belum punya token, lalu UI menjelaskan bahwa token harus dimasukkan; sebelumnya mode impor
+  diam-diam dibatalkan dan pengaturan tampak tidak lengkap. Pemilih file menerima `*/*` karena
+  sebagian penyedia dokumen memberi label `application/octet-stream` pada file JSON, dan parser
+  menolak isi yang salah.
 - **Handover bukan outage.** `NetworkMonitor` menerbitkan `generation` saat jaringan default atau
   transportnya berubah. `ShareRuntime` membatalkan probe publik yang sedang berjalan, mengosongkan
   hasil reachability, lalu memulai probe baru di jalur baru. Probe memakai `Connection: close`
@@ -122,7 +126,9 @@ Catatan keputusan arsitektur dan keamanan, berurutan dari yang terbaru.
   unduh tetap berfungsi tanpa JavaScript.
 - **Gambar animasi** (GIF/WebP/APNG) tidak di-re-encode untuk tampilan penuh; thumbnail boleh
   dioptimasi sebagai gambar statis.
-- **Ekspor/impor settings JSON** tidak pernah memuat token tunnel atau secret lain.
+- **Ekspor/impor settings JSON** tidak pernah memuat token tunnel atau secret lain. (Diganti di
+  M14: token named tunnel ikut diekspor setelah pengguna memintanya agar pindah perangkat tanpa
+  memasukkan ulang.)
 
 ## M8: Release, CI, dan dokumentasi
 
